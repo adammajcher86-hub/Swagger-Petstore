@@ -26,13 +26,8 @@ from framework.assertions import (
 class TestCustomerJourney:
     """End-to-end customer journey tests"""
 
-    @pytest.fixture(scope="class")
-    def test_data(self):
-        """Shared test data for customer journey"""
-        return {"pet": None, "order": None}
-
     @pytest.mark.smoke
-    def test_01_customer_browses_available_pets(self, api_client, logger, test_data):
+    def test_01_customer_browses_available_pets(self, api_client, logger):
         """
         GIVEN the customer visits the pet store
         WHEN they browse pets with status 'available'
@@ -44,7 +39,7 @@ class TestCustomerJourney:
         test_pet = TestDataFactory.create_pet(status="available")
         create_response = api_client.post("/pet", json=test_pet)
         assert_response_status(create_response, 200, "Failed to create test pet")
-        test_data["pet"] = create_response.json()
+        created_pet = create_response.json()
 
         # Browse available pets
         response = api_client.get("/pet/findByStatus", params={"status": "available"})
@@ -56,19 +51,23 @@ class TestCustomerJourney:
 
         # Verify our test pet is in the list
         pet_ids = [pet.get("id") for pet in pets]
-        assert (
-            test_data["pet"]["id"] in pet_ids
-        ), "Created pet should be in available list"
+        assert created_pet["id"] in pet_ids, "Created pet should be in available list"
 
         logger.info(f"Found {len(pets)} available pets")
 
-    def test_02_customer_views_pet_details(self, api_client, logger, test_data):
+    def test_02_customer_views_pet_details(self, api_client, logger):
         """
         GIVEN the customer has found a pet they're interested in
         WHEN they view the pet's detailed information
         THEN they should see complete pet details including name, category, and status
         """
-        pet_id = test_data["pet"]["id"]
+        # Create a pet for this test
+        test_pet = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=test_pet)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        created_pet = create_response.json()
+        pet_id = created_pet["id"]
+
         logger.info(f"Customer viewing details for pet ID: {pet_id}")
 
         response = api_client.get(f"/pet/{pet_id}")
@@ -87,13 +86,19 @@ class TestCustomerJourney:
         logger.info(f"Pet details verified: {pet_details['name']}")
 
     @pytest.mark.smoke
-    def test_03_customer_places_order(self, api_client, logger, test_data):
+    def test_03_customer_places_order(self, api_client, logger):
         """
         GIVEN the customer wants to purchase a pet
         WHEN they place an order for the pet
         THEN the order should be created successfully with 'placed' status
         """
-        pet_id = test_data["pet"]["id"]
+        # Create a pet for this test
+        test_pet = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=test_pet)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        created_pet = create_response.json()
+        pet_id = created_pet["id"]
+
         logger.info(f"Customer placing order for pet ID: {pet_id}")
 
         order_data = TestDataFactory.create_order(pet_id=pet_id, quantity=1)
@@ -101,7 +106,6 @@ class TestCustomerJourney:
 
         assert_response_status(response, 200, "Failed to place order")
         order = response.json()
-        test_data["order"] = order
 
         assert_field_value(order, "petId", pet_id, "Order should reference correct pet")
         assert_field_value(order, "status", "placed", "Order status should be 'placed'")
@@ -109,13 +113,23 @@ class TestCustomerJourney:
 
         logger.info(f"Order placed successfully: Order ID {order['id']}")
 
-    def test_04_customer_checks_order_status(self, api_client, logger, test_data):
+    def test_04_customer_checks_order_status(self, api_client, logger):
         """
         GIVEN the customer has placed an order
         WHEN they check their order status
         THEN they should see the current order information
         """
-        order_id = test_data["order"]["id"]
+        # Create a pet and order for this test
+        test_pet = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=test_pet)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet_id = create_response.json()["id"]
+
+        order_data = TestDataFactory.create_order(pet_id=pet_id, quantity=1)
+        order_response = api_client.post("/store/order", json=order_data)
+        assert_response_status(order_response, 200, "Failed to place order")
+        order_id = order_response.json()["id"]
+
         logger.info(f"Customer checking status for order ID: {order_id}")
 
         response = api_client.get(f"/store/order/{order_id}")

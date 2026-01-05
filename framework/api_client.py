@@ -4,6 +4,7 @@ Robust API client with retry logic and comprehensive error handling.
 
 import requests
 import logging
+
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 

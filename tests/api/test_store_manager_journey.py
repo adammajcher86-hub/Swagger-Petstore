@@ -26,13 +26,8 @@ from framework.assertions import (
 class TestStoreManagerJourney:
     """End-to-end store manager journey tests"""
 
-    @pytest.fixture(scope="class")
-    def test_data(self):
-        """Shared test data for manager journey"""
-        return {"pet": None, "updated_pet": None, "order": None}
-
     @pytest.mark.smoke
-    def test_01_manager_adds_new_pet_to_inventory(self, api_client, logger, test_data):
+    def test_01_manager_adds_new_pet_to_inventory(self, api_client, logger):
         """
         GIVEN the manager receives new pets
         WHEN they add a pet to the system
@@ -45,7 +40,6 @@ class TestStoreManagerJourney:
 
         assert_response_status(response, 200, "Failed to add pet to inventory")
         created_pet = response.json()
-        test_data["pet"] = created_pet
 
         assert_field_exists(created_pet, "id", "Created pet should have an ID")
         assert_field_value(
@@ -59,13 +53,18 @@ class TestStoreManagerJourney:
             f"Pet added successfully: ID {created_pet['id']}, Name: {created_pet['name']}"
         )
 
-    def test_02_manager_updates_pet_information(self, api_client, logger, test_data):
+    def test_02_manager_updates_pet_information(self, api_client, logger):
         """
         GIVEN a pet exists in inventory
         WHEN the manager updates the pet's information
         THEN the changes should be saved successfully
         """
-        pet = test_data["pet"]
+        # Create a pet for this test
+        pet_data = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=pet_data)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet = create_response.json()
+
         logger.info(f"Manager updating pet ID: {pet['id']}")
 
         # Update pet details
@@ -77,7 +76,6 @@ class TestStoreManagerJourney:
 
         assert_response_status(response, 200, "Failed to update pet")
         updated_pet = response.json()
-        test_data["updated_pet"] = updated_pet
 
         assert_field_value(
             updated_pet, "name", updated_data["name"], "Pet name should be updated"
@@ -90,13 +88,27 @@ class TestStoreManagerJourney:
             f"Pet updated: New name '{updated_pet['name']}', Status: {updated_pet['status']}"
         )
 
-    def test_03_manager_verifies_update_persisted(self, api_client, logger, test_data):
+    def test_03_manager_verifies_update_persisted(self, api_client, logger):
         """
         GIVEN the manager has updated a pet
         WHEN they retrieve the pet again
         THEN the updates should be persisted
         """
-        pet_id = test_data["updated_pet"]["id"]
+        # Create and update a pet for this test
+        pet_data = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=pet_data)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet = create_response.json()
+
+        # Update the pet
+        updated_data = pet.copy()
+        updated_data["name"] = f"{pet['name']}_Updated"
+        updated_data["status"] = "pending"
+        update_response = api_client.put("/pet", json=updated_data)
+        assert_response_status(update_response, 200, "Failed to update pet")
+        updated_pet = update_response.json()
+        pet_id = updated_pet["id"]
+
         logger.info(f"Manager verifying persisted updates for pet ID: {pet_id}")
 
         response = api_client.get(f"/pet/{pet_id}")
@@ -105,7 +117,7 @@ class TestStoreManagerJourney:
         pet = response.json()
 
         assert_field_value(
-            pet, "name", test_data["updated_pet"]["name"], "Name update should persist"
+            pet, "name", updated_pet["name"], "Name update should persist"
         )
         assert_field_value(pet, "status", "pending", "Status update should persist")
 
@@ -137,13 +149,18 @@ class TestStoreManagerJourney:
                 ), f"{status} count should be integer"
                 logger.info(f"Inventory - {status}: {inventory[status]}")
 
-    def test_05_manager_marks_pet_as_sold(self, api_client, logger, test_data):
+    def test_05_manager_marks_pet_as_sold(self, api_client, logger):
         """
         GIVEN a pet has been purchased
         WHEN the manager updates the pet status to 'sold'
         THEN the pet should no longer appear as available
         """
-        pet = test_data["updated_pet"]
+        # Create a pet for this test
+        pet_data = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=pet_data)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet = create_response.json()
+
         logger.info(f"Manager marking pet ID {pet['id']} as sold")
 
         sold_data = pet.copy()
@@ -158,15 +175,24 @@ class TestStoreManagerJourney:
 
         logger.info("Pet successfully marked as sold")
 
-    def test_06_manager_verifies_sold_pet_not_available(
-        self, api_client, logger, test_data
-    ):
+    def test_06_manager_verifies_sold_pet_not_available(self, api_client, logger):
         """
         GIVEN a pet has been marked as sold
         WHEN searching for available pets
         THEN the sold pet should not appear in results
         """
-        sold_pet_id = test_data["updated_pet"]["id"]
+        # Create and mark a pet as sold for this test
+        pet_data = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=pet_data)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet = create_response.json()
+
+        sold_data = pet.copy()
+        sold_data["status"] = "sold"
+        update_response = api_client.put("/pet", json=sold_data)
+        assert_response_status(update_response, 200, "Failed to mark pet as sold")
+        sold_pet_id = update_response.json()["id"]
+
         logger.info("Manager verifying sold pet not in available list")
 
         response = api_client.get("/pet/findByStatus", params={"status": "available"})
@@ -181,13 +207,18 @@ class TestStoreManagerJourney:
 
         logger.info("Verified: Sold pet correctly excluded from available inventory")
 
-    def test_07_manager_removes_pet_from_system(self, api_client, logger, test_data):
+    def test_07_manager_removes_pet_from_system(self, api_client, logger):
         """
         GIVEN a pet needs to be removed from the system
         WHEN the manager deletes the pet
         THEN the pet should no longer be retrievable
         """
-        pet_id = test_data["updated_pet"]["id"]
+        # Create a pet for this test
+        pet_data = TestDataFactory.create_pet(status="available")
+        create_response = api_client.post("/pet", json=pet_data)
+        assert_response_status(create_response, 200, "Failed to create test pet")
+        pet_id = create_response.json()["id"]
+
         logger.info(f"Manager removing pet ID {pet_id} from system")
 
         # Delete the pet

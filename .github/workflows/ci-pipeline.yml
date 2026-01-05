@@ -22,20 +22,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     strategy:
       matrix:
-        python-version: ['3.9', '3.10', '3.11']
-        environment: [qa, staging]
+        environment: [qa]
       fail-fast: false
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.11'
     
     - name: Cache pip dependencies
       uses: actions/cache@v4
@@ -61,11 +64,11 @@ jobs:
           --env=${{ matrix.environment }} \
           -v \
           --tb=short \
-          --html=reports/report-${{ matrix.environment }}-py${{ matrix.python-version }}.html \
+          --html=reports/report-${{ matrix.environment }}.html \
           --self-contained-html \
           --alluredir=allure-results \
           -n auto \
-          --junitxml=reports/junit-${{ matrix.environment }}-py${{ matrix.python-version }}.xml
+          --junitxml=reports/junit-${{ matrix.environment }}.xml
     
     - name: Generate Allure Report
       if: always()
@@ -79,7 +82,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-reports-${{ matrix.environment }}-py${{ matrix.python-version }}
+        name: test-reports-${{ matrix.environment }}
         path: |
           reports/
           allure-report/
@@ -90,7 +93,7 @@ jobs:
       uses: EnricoMi/publish-unit-test-result-action@v2
       with:
         files: reports/*.xml
-        check_name: Test Results (${{ matrix.environment }}, Python ${{ matrix.python-version }})
+        check_name: Test Results (${{ matrix.environment }})
     
     - name: Comment PR with Test Results
       if: github.event_name == 'pull_request' && always()
@@ -102,7 +105,7 @@ jobs:
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `## Test Results for ${{ matrix.environment }} (Python ${{ matrix.python-version }})\n\nSee attached artifacts for detailed HTML and Allure reports.`
+            body: `## Test Results for ${{ matrix.environment }}\n\nSee attached artifacts for detailed HTML and Allure reports.`
           })
 
   smoke-test-production:

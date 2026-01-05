@@ -4,28 +4,13 @@ For dynamic test data, use TestDataFactory in framework package.
 """
 
 # Pet statuses
-PET_STATUS = {
-    "AVAILABLE": "available",
-    "PENDING": "pending",
-    "SOLD": "sold"
-}
+PET_STATUS = {"AVAILABLE": "available", "PENDING": "pending", "SOLD": "sold"}
 
 # Order statuses
-ORDER_STATUS = {
-    "PLACED": "placed",
-    "APPROVED": "approved",
-    "DELIVERED": "delivered"
-}
+ORDER_STATUS = {"PLACED": "placed", "APPROVED": "approved", "DELIVERED": "delivered"}
 
 # Pet categories
-PET_CATEGORIES = [
-    "Dogs",
-    "Cats",
-    "Birds",
-    "Fish",
-    "Reptiles",
-    "Small Pets"
-]
+PET_CATEGORIES = ["Dogs", "Cats", "Birds", "Fish", "Reptiles", "Small Pets"]
 
 # API endpoints
 ENDPOINTS = {
@@ -36,7 +21,7 @@ ENDPOINTS = {
     "ORDER_BY_ID": "/store/order/{orderId}",
     "INVENTORY": "/store/inventory",
     "USER": "/user",
-    "USER_BY_NAME": "/user/{username}"
+    "USER_BY_NAME": "/user/{username}",
 }
 
 # HTTP status codes
@@ -49,7 +34,7 @@ STATUS_CODES = {
     "FORBIDDEN": 403,
     "NOT_FOUND": 404,
     "METHOD_NOT_ALLOWED": 405,
-    "INTERNAL_SERVER_ERROR": 500
+    "INTERNAL_SERVER_ERROR": 500,
 }
 
 # Test data constraints
@@ -57,5 +42,5 @@ CONSTRAINTS = {
     "MAX_PET_NAME_LENGTH": 50,
     "MAX_ORDER_QUANTITY": 100,
     "MIN_PET_ID": 1,
-    "MAX_PET_ID": 999999
+    "MAX_PET_ID": 999999,
 }

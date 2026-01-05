@@ -1,6 +1,7 @@
 """
 Pytest configuration and shared fixtures.
 """
+
 import pytest
 import logging
 from framework.api_client import APIClient
@@ -14,7 +15,7 @@ def pytest_addoption(parser):
         "--env",
         action="store",
         default="qa",
-        help="Environment to run tests: dev, qa, staging, prod"
+        help="Environment to run tests: dev, qa, staging, prod",
     )
 
 
@@ -22,7 +23,7 @@ def pytest_addoption(parser):
 def config(request):
     """
     Get environment configuration for test session.
-    
+
     Usage:
         def test_example(config):
             base_url = config["base_url"]
@@ -36,9 +37,9 @@ def config(request):
 def api_client(config):
     """
     Create API client for test session.
-    
+
     The client is created once per test session and reused across tests.
-    
+
     Usage:
         def test_example(api_client):
             response = api_client.get("/pet/123")
@@ -46,7 +47,7 @@ def api_client(config):
     client = APIClient(
         base_url=config["base_url"],
         timeout=config["timeout"],
-        retry_count=config["retry_count"]
+        retry_count=config["retry_count"],
     )
     yield client
     client.close()
@@ -56,15 +57,15 @@ def api_client(config):
 def logger():
     """
     Create logger for individual test.
-    
+
     Usage:
         def test_example(logger):
             logger.info("Test started")
     """
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     return logging.getLogger(__name__)
 
@@ -79,9 +80,9 @@ def test_context(request, logger):
     logger.info(f"{'='*80}")
     logger.info(f"Starting test: {test_name}")
     logger.info(f"{'='*80}")
-    
+
     yield
-    
+
     logger.info(f"{'='*80}")
     logger.info(f"Finished test: {test_name}")
     logger.info(f"{'='*80}")
@@ -91,7 +92,7 @@ def test_context(request, logger):
 def cleanup_pets(api_client):
     """
     Fixture to track and cleanup created pets after test.
-    
+
     Usage:
         def test_example(api_client, cleanup_pets):
             pet = create_pet()
@@ -100,7 +101,7 @@ def cleanup_pets(api_client):
     """
     pet_ids = []
     yield pet_ids
-    
+
     # Cleanup after test
     for pet_id in pet_ids:
         try:
@@ -113,7 +114,7 @@ def cleanup_pets(api_client):
 def cleanup_orders(api_client):
     """
     Fixture to track and cleanup created orders after test.
-    
+
     Usage:
         def test_example(api_client, cleanup_orders):
             order = create_order()
@@ -122,7 +123,7 @@ def cleanup_orders(api_client):
     """
     order_ids = []
     yield order_ids
-    
+
     # Cleanup after test
     for order_id in order_ids:
         try:
@@ -142,12 +143,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "smoke: Quick smoke tests for critical functionality"
     )
-    config.addinivalue_line(
-        "markers", "regression: Full regression test suite"
-    )
-    config.addinivalue_line(
-        "markers", "customer: Customer user journey tests"
-    )
-    config.addinivalue_line(
-        "markers", "manager: Store manager user journey tests"
-    )
+    config.addinivalue_line("markers", "regression: Full regression test suite")
+    config.addinivalue_line("markers", "customer: Customer user journey tests")
+    config.addinivalue_line("markers", "manager: Store manager user journey tests")

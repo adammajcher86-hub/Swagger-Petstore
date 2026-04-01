@@ -1,1 +1,5 @@
 
+for f in tmpl*.cer; do
+  echo "=== $f ==="
+  openssl x509 -in "$f" -noout -subject -issuer 2>/dev/null || echo "INVALID or DER format"
+done

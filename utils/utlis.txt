@@ -1,0 +1,11 @@
+// 1. Check if dialog is now visible
+document.querySelector('#erfcsetdateDiv duet-date-picker .duet-date__dialog').getAttribute('aria-hidden')
+
+// 2. Find all selects inside duet-date-picker
+document.querySelectorAll('#erfcsetdateDiv duet-date-picker select')
+
+// 3. Check the exact class names and ids of those selects
+document.querySelectorAll('#erfcsetdateDiv duet-date-picker select').forEach(s => console.log(s.id, s.className))
+
+// 4. Check if duet-date-picker has its OWN shadow root
+document.querySelector('#erfcsetdateDiv duet-date-picker').shadowRoot

@@ -1,4 +1,3 @@
-
 When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
   await delay(5000);
@@ -6,33 +5,21 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
   if (locator === 'Natco Installation Poland') title = 'natco_installation';
   else title = locator.toLowerCase().replaceAll(' ', '_');
 
+  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
+
   const row = page.locator(`//*[@title='${title}']`);
   await row.hover();
   await delay(1000);
-
-  // Try single click first to focus, then Enter to open
   await row.click({ force: true });
   await delay(500);
-  
-  // Check if new page appeared
-  const pages = this.browserContext.pages();
-  console.log('pages after click:', pages.length);
-  
-  // Try dispatching dblclick event directly
-  await row.dispatchEvent('dblclick');
-  await delay(3000);
-  
-  const pagesAfter = this.browserContext.pages();
-  console.log('pages after dblclick:', pagesAfter.length);
-  pagesAfter.forEach((p, i) => console.log(`page ${i}:`, p.url()));
+  await row.click({ force: true });
 
-  if (pagesAfter.length > 1) {
-    const newTab = pagesAfter[pagesAfter.length - 1];
-    await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
-    await newTab.bringToFront();
-    this.newTab = newTab;
-    this.page = newTab;
-  } else {
-    throw new Error('No new tab detected');
-  }
+  console.log('waiting for new tab...');
+  const newTab = await newTabPromise;
+  console.log('new tab opened:', await newTab.url());
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  await newTab.bringToFront();
+  this.newTab = newTab;
+  this.page = newTab;
 });

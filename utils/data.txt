@@ -1,1 +1,56 @@
+export const datePicker = async (page: Page, days: number, dateType: string) => {
+  const today = new Date();
+  const targetDate = new Date(today.setDate(today.getDate() + days));
+  const targetDay = targetDate.getDate();
+  let targetDayString: string;
+  if (targetDay < 10) {
+    targetDayString = ('0' + targetDay).toString();
+  } else targetDayString = targetDay.toString();
+  const targetMonth = targetDate.toLocaleString('en-US', { month: 'long' });
+  const targetMonthNo = String(targetDate.getMonth() + 1).padStart(2, '0');
 
+  const { container } = getDateSelectors(dateType);
+
+  await page.waitForSelector(
+    `${container} duet-date-picker .duet-date__dialog[aria-hidden="false"]`,
+    { timeout: 10000 }
+  );
+
+  await page.locator(`${container} duet-date-picker .duet-date__select--month`)
+    .selectOption({ label: targetMonth });
+
+  const targetYear = targetDate.getFullYear().toString().trim();
+
+  if (targetYear !== new Date().getFullYear().toString().trim()) {
+    await page.locator(`${container} duet-date-picker .duet-date__select--year`)
+      .selectOption({ label: targetYear });
+  }
+
+  await expect(page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true }))
+    .toBeEnabled({ timeout: 5000 });
+  await page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true }).click();
+
+  const formattedDate = `${targetYear}-${targetMonthNo}-${targetDayString}`;
+  return formattedDate;
+};
+
+
+
+const getDateSelectors = (dateType: string): { monthSelector: string; yearSelector: string; container: string } => {
+  const selectorMapping: { [key: string]: { month: string; year: string; container: string } } = {
+    ERFC:    { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
+    Billing: { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
+    RFS:     { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: '#rfcsetdateDiv' },
+    cRFU:    { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: '#committedrfcsetDiv' },
+    eRFU:    { month: LOCATORS['month selector'] + '[3]', year: LOCATORS['year selector'] + '[3]', container: '#committedrfcsetDiv' },
+    aRFU:    { month: LOCATORS['month selector'] + '[5]', year: LOCATORS['year selector'] + '[5]', container: '#actualrfssetdateDiv' },
+    default: { month: LOCATORS['month selector'] + '[2]', year: LOCATORS['year selector'] + '[2]', container: '#erfcsetdateDiv' },
+  };
+  const key = dateType.split(' ')[0];
+  const entry = selectorMapping[key] ?? selectorMapping['default'];
+  return {
+    monthSelector: entry.month,
+    yearSelector: entry.year,
+    container: entry.container,
+  };
+};

@@ -1,1 +1,25 @@
 
+When('User opens {string} suborder', async function (locator: string) {
+  const page = this.page;
+  await delay(5000);
+  let title: string;
+  if (locator === 'Natco Installation Poland') title = 'natco_installation';
+  else title = locator.toLowerCase().replaceAll(' ', '_');
+
+  const [newTab] = await Promise.all([
+    page.context().waitForEvent('page', { timeout: 30000 }),
+    delay(1000),
+    page.getByText(locator).last().hover(),
+    delay(1000),
+    console.log(`//*[@title='${title}']`),
+    page.locator(`//*[@title='${title}']`).dblclick({ force: true }),
+    delay(8000),
+  ]);
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  console.log('before bringing to front', await newTab.title());
+  await newTab.bringToFront();
+  console.log('after bringing to front', await newTab.title());
+  this.newTab = newTab;
+  this.page = newTab;
+});

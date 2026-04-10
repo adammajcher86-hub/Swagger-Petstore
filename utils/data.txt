@@ -1,1 +1,28 @@
 
+When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
+  const page = this.page;
+  await delay(5000);
+  let title: string;
+  if (locator === 'Natco Installation Poland') title = 'natco_installation';
+  else title = locator.toLowerCase().replaceAll(' ', '_');
+
+  await page.getByText(locator).last().hover();
+  await delay(1000);
+  console.log(`//*[@title='${title}']`);
+  await page.locator(`//*[@title='${title}']`).dblclick({ force: true });
+
+  console.log('waiting for new window...');
+  await delay(5000); // give time for window to open
+
+  const allPages = page.context().pages();
+  console.log('total pages:', allPages.length);
+  allPages.forEach((p, i) => console.log(`page ${i}:`, p.url()));
+
+  const newTab = allPages[allPages.length - 1]; // grab last opened page
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  console.log('new tab title:', await newTab.title());
+  await newTab.bringToFront();
+  this.newTab = newTab;
+  this.page = newTab;
+});

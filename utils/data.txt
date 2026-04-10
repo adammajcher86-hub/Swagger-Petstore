@@ -1,1 +1,41 @@
 
+When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
+  const page = this.page;
+  await delay(5000);
+  let title: string;
+  if (locator === 'Natco Installation Poland') title = 'natco_installation';
+  else title = locator.toLowerCase().replaceAll(' ', '_');
+
+  // Listen for both events to detect which one fires
+  page.context().on('page', (p) => console.log('NEW PAGE DETECTED:', p.url()));
+  page.on('popup', (p) => console.log('POPUP DETECTED:', p.url()));
+
+  // Register both listeners before click
+  const newTabPromise = page.context().waitForEvent('page', { timeout: 10000 })
+    .catch(() => null);
+  const popupPromise = page.waitForEvent('popup', { timeout: 10000 })
+    .catch(() => null);
+
+  await page.getByText(locator).last().hover();
+  await delay(1000);
+  console.log(`//*[@title='${title}']`);
+  await page.locator(`//*[@title='${title}']`).dblclick({ force: true });
+
+  console.log('waiting for new tab or popup...');
+  const newTab = await Promise.race([
+    newTabPromise,
+    popupPromise,
+  ]);
+
+  console.log('result:', newTab);
+
+  if (!newTab) {
+    throw new Error('No new tab or popup was detected after dblclick');
+  }
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  console.log('new tab title:', await newTab.title());
+  await newTab.bringToFront();
+  this.newTab = newTab;
+  this.page = newTab;
+});

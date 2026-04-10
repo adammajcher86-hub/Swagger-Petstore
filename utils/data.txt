@@ -1,1 +1,8 @@
 
+document.evaluate(
+  "//*[@title='natco_installation_slovakia']",
+  document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+).singleNodeValue
+
+document.querySelectorAll('[title*="natco"], [title*="slovakia"], [title*="Slovakia"]')
+  .forEach(el => console.log(el.title, el.tagName))

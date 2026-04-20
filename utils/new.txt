@@ -1,3 +1,7 @@
 
 document.querySelectorAll('[id*="WL"], [class*="WL"], [id*="wl"], [class*="wl"]')
   .forEach(el => console.log(el.id, el.className, el.tagName));
+
+
+document.querySelectorAll('table, [class*="table"], [id*="table"]')
+  .forEach(el => console.log(el.id, el.className, el.tagName));

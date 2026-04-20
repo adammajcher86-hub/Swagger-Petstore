@@ -60,3 +60,6 @@ When('Verify order data from {string}:', { timeout: 30000 }, async function (loc
   // save tgnmsid and sno globally for further verifications
   if (locator.includes('Response data')) {
     await page.waitForSelector(`(//*[@label="Message Text"])[1]`, { timeout: 10000 });
+
+document.querySelectorAll('.ck-editor__nested-editable')
+  .forEach((cell, i) => console.log(`cell ${i}:`, cell.textContent.trim()));

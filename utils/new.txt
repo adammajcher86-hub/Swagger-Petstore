@@ -5,3 +5,7 @@ document.querySelectorAll('[id*="WL"], [class*="WL"], [id*="wl"], [class*="wl"]'
 
 document.querySelectorAll('table, [class*="table"], [id*="table"]')
   .forEach(el => console.log(el.id, el.className, el.tagName));
+
+document.querySelectorAll('.ck-editor__nested-editable').forEach((cell, i) => {
+  console.log(`cell ${i}:`, cell.textContent.trim());
+});

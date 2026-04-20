@@ -82,3 +82,19 @@ try {
   } catch (e) {
     // VNR not on this page, skip
   }
+
+
+--------------------------------------
+| Customer/Contract  | vnrValue |
+
+
+
+if (expectedValue === 'vnrValue') {
+  expectedValue = `5903095912/${this.vnr}`;
+}
+if (expectedValue === 'vnrValue') {
+  expect(actualValue).toContain(this.vnr);
+  continue;
+}
+
+

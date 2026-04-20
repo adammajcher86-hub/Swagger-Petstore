@@ -1,0 +1,3 @@
+
+document.querySelectorAll('[id*="WL"], [class*="WL"], [id*="wl"], [class*="wl"]')
+  .forEach(el => console.log(el.id, el.className, el.tagName));

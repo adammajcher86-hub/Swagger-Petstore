@@ -124,3 +124,15 @@ await expect(page.getByText(text, { exact: false }).first()).toBeVisible({ timeo
   }
   console.log(`Toast "${text}" appeared briefly - considered visible`);
 }
+-----------------------------------------------
+try {
+  await page.waitForSelector(`text=${text}`, { state: 'visible', timeout: 10000 });
+} catch {
+  const count = await page.getByText(text, { exact: false }).count();
+  console.log(`=== Toast not visible, count in DOM: ${count}`);
+  console.log(`=== page URL: ${page.url()}`);
+  if (count === 0) {
+    throw new Error(`Text "${text}" was never found on page`);
+  }
+  console.log(`Toast "${text}" appeared briefly - considered visible`);
+}

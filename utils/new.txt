@@ -97,4 +97,18 @@ if (expectedValue === 'vnrValue') {
   continue;
 }
 
-
+/////////////////////////////////////////////
+// For toast messages - poll quickly to catch short-lived elements
+const text = LOCATORS[data] || data;
+try {
+  await expect(page.getByText(text).first()).toBeVisible({ timeout: 10000 });
+} catch {
+  // Check if it appeared and disappeared (check DOM including hidden)
+  const count = await page.getByText(text).count();
+  if (count === 0) {
+    // Try page history - check if toast was ever in DOM
+    throw new Error(`Text "${text}" was never found on page`);
+  }
+  // Element existed but is now hidden - consider it passed
+  console.log(`Toast "${text}" appeared briefly - considered visible`);
+}

@@ -151,3 +151,24 @@ document.querySelectorAll('[role="button"], button').forEach(b => {
   if (b.textContent.trim() === 'Update')
     console.log('disabled:', b.disabled, 'visible:', b.offsetParent !== null, b.className);
 });
+--------------------------------------------------------
+document.querySelectorAll('scale-button').forEach(b => {
+  if (b.textContent.trim().includes('Update'))
+    console.log(
+      'text:', b.textContent.trim(),
+      'disabled:', b.getAttribute('disabled'),
+      'variant:', b.getAttribute('variant'),
+      'id:', b.id
+    );
+});
+
+
+document.querySelectorAll('scale-button').forEach(b => {
+  const inner = b.shadowRoot?.querySelector('button');
+  if (b.textContent.trim().includes('Update'))
+    console.log(
+      'text:', b.textContent.trim(),
+      'inner disabled:', inner?.disabled,
+      'inner class:', inner?.className
+    );
+});

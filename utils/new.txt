@@ -196,3 +196,23 @@ document.querySelectorAll('scale-button').forEach(b => {
     );
   }
 });
+---------------------------------------
+When('User clicks {string} button and verifies {string} toast', async function (buttonName: string, toastText: string) {
+  const page = this.page;
+  const text = LOCATORS[toastText] || toastText;
+  
+  // Register toast listener BEFORE clicking
+  const toastPromise = page.waitForSelector(`text=${text}`, { 
+    state: 'visible', 
+    timeout: 10000 
+  }).catch(() => null);
+
+  await page.getByRole('button', { name: buttonName, exact: true }).first().click();
+  
+  const toast = await toastPromise;
+  expect(toast).not.toBeNull();
+});
+
+
+
+And User clicks "Update" button and verifies "update success message" toast

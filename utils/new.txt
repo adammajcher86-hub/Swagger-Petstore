@@ -140,3 +140,14 @@ try {
 document.querySelectorAll('button').forEach(b => 
   console.log(b.textContent.trim(), b.disabled, b.offsetParent !== null)
 );
+======================================================
+document.querySelectorAll('button').forEach(b => {
+  if (b.textContent.trim().includes('Update')) 
+    console.log(b.textContent.trim(), 'disabled:', b.disabled, 'visible:', b.offsetParent !== null);
+});
+
+
+document.querySelectorAll('[role="button"], button').forEach(b => {
+  if (b.textContent.trim() === 'Update')
+    console.log('disabled:', b.disabled, 'visible:', b.offsetParent !== null, b.className);
+});

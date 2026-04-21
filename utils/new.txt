@@ -183,3 +183,16 @@ document.querySelectorAll('scale-button').forEach(b => {
   if (b.textContent.trim() === 'Update')
     console.log(`Update button ${i++}:`, b.closest('[id]')?.id, b.closest('form')?.id);
 });
+
+
+let i = 0;
+document.querySelectorAll('scale-button').forEach(b => {
+  if (b.textContent.trim() === 'Update') {
+    const rect = b.getBoundingClientRect();
+    console.log(`Update button ${i++}: top=${Math.round(rect.top)} left=${Math.round(rect.left)} preceding label:`, 
+      b.closest('div[class*="grid"]')?.querySelector('label, [label]')?.textContent?.trim() ||
+      b.previousElementSibling?.textContent?.trim() ||
+      b.parentElement?.id
+    );
+  }
+});

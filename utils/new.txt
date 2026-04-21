@@ -112,3 +112,6 @@ try {
   // Element existed but is now hidden - consider it passed
   console.log(`Toast "${text}" appeared briefly - considered visible`);
 }
+-----------------------------------------
+
+await expect(page.getByText(text, { exact: false }).first()).toBeVisible({ timeout: 10000 });

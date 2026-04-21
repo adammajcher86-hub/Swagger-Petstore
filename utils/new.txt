@@ -172,3 +172,14 @@ document.querySelectorAll('scale-button').forEach(b => {
       'inner class:', inner?.className
     );
 });
+
+
+
+
+
+let i = 0;
+document.querySelectorAll('scale-button').forEach(b => {
+  const inner = b.shadowRoot?.querySelector('button');
+  if (b.textContent.trim() === 'Update')
+    console.log(`Update button ${i++}:`, b.closest('[id]')?.id, b.closest('form')?.id);
+});

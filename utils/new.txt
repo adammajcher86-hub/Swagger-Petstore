@@ -136,3 +136,7 @@ try {
   }
   console.log(`Toast "${text}" appeared briefly - considered visible`);
 }
+------------------------------------------
+document.querySelectorAll('button').forEach(b => 
+  console.log(b.textContent.trim(), b.disabled, b.offsetParent !== null)
+);

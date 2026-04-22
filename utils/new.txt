@@ -1,29 +1,10 @@
-When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
-  const page = this.page;
-  await delay(5000);
-  let title: string;
-  if (locator === 'Natco Installation Poland') title = 'natco_installation';
-  else title = locator.toLowerCase().replaceAll(' ', '_');
+// Check what happens when we manually dblclick via JS
+const row = document.querySelector('tr[title="natco_installation_slovakia"]');
+row.addEventListener('dblclick', (e) => console.log('dblclick fired!', e));
+row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
 
-  console.log('title:', title);
-
-  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
-
-  // Use JavaScript to dispatch dblclick directly
-  await page.evaluate((t) => {
-    const row = document.querySelector(`tr[title="${t}"]`);
-    console.log('row found by evaluate:', row);
-    if (row) {
-      row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
-    }
-  }, title);
-
-  console.log('waiting for new tab...');
-  const newTab = await newTabPromise;
-  console.log('new tab url:', await newTab.url());
-
-  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
-  await newTab.bringToFront();
-  this.newTab = newTab;
-  this.page = newTab;
+// Also check what event actually opens the tab
+const table = document.querySelector('#tasksuborders');
+['click', 'dblclick', 'mousedown', 'mouseup'].forEach(evt => {
+  table.addEventListener(evt, (e) => console.log(evt, 'on:', e.target.tagName, e.target.title));
 });

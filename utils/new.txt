@@ -1,3 +1,10 @@
+const row = page.locator(`#tasksuborders tr[title='${title}']`);
+
+const row = page.locator(`#taskstable tr[title='${title}']`);
+
+
+
+
 When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
   await delay(5000);

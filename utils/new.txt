@@ -5,17 +5,18 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
   if (locator === 'Natco Installation Poland') title = 'natco_installation';
   else title = locator.toLowerCase().replaceAll(' ', '_');
 
-  console.log('....User opens {string} suborder: begin of method');
   console.log('title:', title);
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
-  const row = page.locator(`#tasksuborders tr[title='${title}']`);
-  await row.scrollIntoViewIfNeeded({ timeout: 15000 });
-  await delay(500);
-  await row.click({ force: true });
-  await delay(500);
-  await row.click({ force: true });
+  // Use JavaScript to dispatch dblclick directly
+  await page.evaluate((t) => {
+    const row = document.querySelector(`tr[title="${t}"]`);
+    console.log('row found by evaluate:', row);
+    if (row) {
+      row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+    }
+  }, title);
 
   console.log('waiting for new tab...');
   const newTab = await newTabPromise;

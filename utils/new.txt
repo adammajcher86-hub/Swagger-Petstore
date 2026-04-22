@@ -1,5 +1,7 @@
-// Check locationA VPSZ input
-document.querySelector('[id*="vpsz"], [name*="vpsz"], [id*="VPSZ"]')
-// Check all inputs in locationA
-document.querySelectorAll('[id*="locationA"] input, [id*="locationa"] input')
-  .forEach(el => console.log(el.id, el.name, el.type));
+await page.locator(`//*[@id='${location}-details-list']/descendant::input[@name='${LOCATORS[elementLocator]}']`)
+
+
+document.evaluate(
+  "//*[@id='locationA-details-list']/descendant::input[@name='locvpsz']",
+  document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null
+).singleNodeValue

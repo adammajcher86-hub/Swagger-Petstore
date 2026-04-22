@@ -7,11 +7,16 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
 
   console.log('title:', title);
   console.log('browserContext exists:', !!this.browserContext);
-  console.log('pages before click:', this.browserContext.pages().length);
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
   const row = page.locator(`//*[@title='${title}']`);
+  
+  // Wait for row to be visible first
+  console.log('waiting for row to be visible...');
+  await row.waitFor({ state: 'visible', timeout: 15000 });
+  console.log('row found, hovering...');
+  
   await row.hover();
   await delay(1000);
   console.log('clicking first time...');
@@ -22,7 +27,6 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
 
   console.log('waiting for new tab...');
   const newTab = await newTabPromise;
-  console.log('pages after click:', this.browserContext.pages().length);
   console.log('new tab url:', await newTab.url());
 
   await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });

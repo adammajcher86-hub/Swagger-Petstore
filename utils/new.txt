@@ -1,43 +1,5 @@
-When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
-  const page = this.page;
-  await delay(5000);
-  let title: string;
-  if (locator === 'Natco Installation Poland') title = 'natco_installation';
-  else title = locator.toLowerCase().replaceAll(' ', '_');
-
-  console.log('....User opens {string} suborder: begin of method');
-  console.log('title:', title);
-  console.log('browserContext exists:', !!this.browserContext);
-
-  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
-
-  const row = page.locator(`//*[@title='${title}']`);
-
-  // Wait for row to be attached to DOM
-  console.log('waiting for row to be attached...');
-  await row.waitFor({ state: 'attached', timeout: 15000 });
-  console.log('row attached, scrolling into view...');
-
-  // Scroll into view
-  await row.scrollIntoViewIfNeeded();
-  await delay(500);
-
-  console.log('hovering...');
-  await row.hover();
-  await delay(1000);
-  console.log('clicking first time...');
-  await row.click({ force: true });
-  await delay(500);
-  console.log('clicking second time...');
-  await row.click({ force: true });
-
-  console.log('waiting for new tab...');
-  const newTab = await newTabPromise;
-  console.log('pages after click:', this.browserContext.pages().length);
-  console.log('new tab url:', await newTab.url());
-
-  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
-  await newTab.bringToFront();
-  this.newTab = newTab;
-  this.page = newTab;
-});
+// Check locationA VPSZ input
+document.querySelector('[id*="vpsz"], [name*="vpsz"], [id*="VPSZ"]')
+// Check all inputs in locationA
+document.querySelectorAll('[id*="locationA"] input, [id*="locationa"] input')
+  .forEach(el => console.log(el.id, el.name, el.type));

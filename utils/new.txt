@@ -1,10 +1,3 @@
-const row = page.locator(`#tasksuborders tr[title='${title}']`);
-
-const row = page.locator(`#taskstable tr[title='${title}']`);
-
-
-
-
 When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
   await delay(5000);
@@ -17,16 +10,11 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
-  const row = page.locator(`tr[title='${title}']`);
-
-  console.log('scrolling into view...');
+  const row = page.locator(`#tasksuborders tr[title='${title}']`);
   await row.scrollIntoViewIfNeeded({ timeout: 15000 });
   await delay(500);
-
-  console.log('clicking first time...');
   await row.click({ force: true });
   await delay(500);
-  console.log('clicking second time...');
   await row.click({ force: true });
 
   console.log('waiting for new tab...');

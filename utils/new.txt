@@ -1,2 +1,45 @@
-page.locator('#committedrfcsetDiv duet-date-picker')
-  .locator('.duet-date__dialog[aria-hidden="false"]')
+export const datePicker = async (page: Page, days: number, dateType: string) => {
+  const today = new Date();
+  const targetDate = new Date(today.setDate(today.getDate() + days));
+  const targetDay = targetDate.getDate();
+  let targetDayString: string;
+  if (targetDay < 10) {
+    targetDayString = ('0' + targetDay).toString();
+  } else targetDayString = targetDay.toString();
+  const targetMonth = targetDate.toLocaleString('en-US', { month: 'long' });
+  const targetMonthNo = String(targetDate.getMonth() + 1).padStart(2, '0');
+
+  const { container } = getDateSelectors(dateType);
+
+  // Wait for duet-date-picker dialog to open
+  // Must use chained locators to pierce shadow DOM - CSS string with spaces does NOT pierce shadow roots
+  await page.locator(container)
+    .locator('duet-date-picker')
+    .locator('.duet-date__dialog[aria-hidden="false"]')
+    .waitFor({ state: 'visible', timeout: 10000 });
+
+  // Select month - pierce shadow DOM via chained locators
+  await page.locator(container)
+    .locator('duet-date-picker')
+    .locator('.duet-date__select--month')
+    .selectOption({ label: targetMonth });
+
+  const targetYear = targetDate.getFullYear().toString().trim();
+
+  // Select year only if different from current year
+  if (targetYear !== new Date().getFullYear().toString().trim()) {
+    await page.locator(container)
+      .locator('duet-date-picker')
+      .locator('.duet-date__select--year')
+      .selectOption({ label: targetYear });
+  }
+
+  // Click the target day button
+  await expect(
+    page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true })
+  ).toBeEnabled({ timeout: 5000 });
+  await page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true }).click();
+
+  const formattedDate = `${targetYear}-${targetMonthNo}-${targetDayString}`;
+  return formattedDate;
+};

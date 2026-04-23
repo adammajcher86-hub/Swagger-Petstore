@@ -1,16 +1,20 @@
 When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
-  await delay(5000);
+
   let title: string;
   if (locator === 'Natco Installation Poland') title = 'natco_installation';
   else title = locator.toLowerCase().replaceAll(' ', '_');
 
-  console.log('....User opens {string} suborder: begin of method');
   console.log('title:', title);
+
+  // Wait for the loading spinner to disappear
+  await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 30000 });
+
+  // Wait for the specific row to appear in DOM
+  await page.locator(`tr[title="${title}"]`).waitFor({ state: 'visible', timeout: 30000 });
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
-  // Get coordinates via JS then use Playwright mouse
   const coords = await page.evaluate((t) => {
     const row = document.querySelector(`tr[title="${t}"]`);
     if (!row) return null;
@@ -22,14 +26,10 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
   console.log('coords:', coords);
   if (!coords) throw new Error(`Row not found for title: ${title}`);
 
-  await delay(500); // wait for scroll to settle
-  console.log('dblclicking at coords...');
+  await delay(500);
   await page.mouse.dblclick(coords.x, coords.y);
 
-  console.log('waiting for new tab...');
   const newTab = await newTabPromise;
-  console.log('new tab url:', await newTab.url());
-
   await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
   await newTab.bringToFront();
   this.newTab = newTab;

@@ -1,37 +1,132 @@
 When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
 
+  console.log('=== [openSuborder] START ===');
+  console.log('[openSuborder] raw locator string:', locator);
+
   let title: string;
   if (locator === 'Natco Installation Poland') title = 'natco_installation';
   else title = locator.toLowerCase().replaceAll(' ', '_');
 
-  console.log('title:', title);
+  console.log('[openSuborder] computed title attribute:', title);
 
-  // Wait for the loading spinner to disappear
-  await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 30000 });
+  // --- STEP 1: Wait for spinner to disappear ---
+  console.log('[openSuborder] STEP 1: waiting for spinner #taskSuborderTabSpinner to be hidden...');
+  try {
+    await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 30000 });
+    console.log('[openSuborder] STEP 1: spinner is hidden ✓');
+  } catch (e) {
+    console.warn('[openSuborder] STEP 1: spinner wait timed out or spinner not found - continuing anyway:', e.message);
+  }
 
-  // Wait for the specific row to appear in DOM
-  await page.locator(`tr[title="${title}"]`).waitFor({ state: 'visible', timeout: 30000 });
+  // --- STEP 2: Dump all tr[title] attributes currently in DOM ---
+  console.log('[openSuborder] STEP 2: dumping all tr[title] values currently in DOM...');
+  const allTitles = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll('tr[title]'));
+    return rows.map(r => r.getAttribute('title'));
+  });
+  console.log('[openSuborder] STEP 2: found tr[title] count:', allTitles.length);
+  console.log('[openSuborder] STEP 2: tr[title] values:', JSON.stringify(allTitles));
 
-  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
+  // --- STEP 3: Check if target row is already in DOM ---
+  console.log(`[openSuborder] STEP 3: checking if tr[title="${title}"] is attached to DOM...`);
+  const rowLocator = page.locator(`tr[title="${title}"]`);
+  const rowCountBefore = await rowLocator.count();
+  console.log(`[openSuborder] STEP 3: row count before waitFor: ${rowCountBefore}`);
 
+  // --- STEP 4: Wait for row attached ---
+  console.log('[openSuborder] STEP 4: waitFor attached (row in DOM)...');
+  try {
+    await rowLocator.waitFor({ state: 'attached', timeout: 30000 });
+    console.log('[openSuborder] STEP 4: row is attached ✓');
+  } catch (e) {
+    // Dump DOM of the table for inspection
+    console.error('[openSuborder] STEP 4: waitFor attached FAILED:', e.message);
+    const tableHtml = await page.evaluate(() => {
+      const table = document.querySelector('#tasksuborders') ?? document.querySelector('table');
+      return table ? table.outerHTML.substring(0, 3000) : 'NO TABLE FOUND';
+    });
+    console.error('[openSuborder] STEP 4: table HTML dump (first 3000 chars):\n', tableHtml);
+    throw e;
+  }
+
+  // --- STEP 5: Check row visibility state ---
+  console.log('[openSuborder] STEP 5: checking row visibility...');
+  const isVisible = await rowLocator.isVisible();
+  const isHidden = await rowLocator.isHidden();
+  console.log(`[openSuborder] STEP 5: isVisible=${isVisible}, isHidden=${isHidden}`);
+
+  // --- STEP 6: Scroll row into view and get coords via JS ---
+  console.log('[openSuborder] STEP 6: scrollIntoView + getBoundingClientRect...');
   const coords = await page.evaluate((t) => {
     const row = document.querySelector(`tr[title="${t}"]`);
-    if (!row) return null;
-    row.scrollIntoView({ block: 'center' });
+    if (!row) {
+      console.log('[evaluate] row NOT found in document');
+      return null;
+    }
+    console.log('[evaluate] row found, scrolling into view...');
+    row.scrollIntoView({ behavior: 'instant', block: 'center' });
     const rect = row.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const style = window.getComputedStyle(row);
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+      rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      display: style.display,
+      visibility: style.visibility,
+      opacity: style.opacity,
+    };
   }, title);
 
-  console.log('coords:', coords);
-  if (!coords) throw new Error(`Row not found for title: ${title}`);
+  console.log('[openSuborder] STEP 6: coords + style result:', JSON.stringify(coords));
 
-  await delay(500);
+  if (!coords) {
+    // Last resort: dump all titles again after scroll attempt
+    const allTitlesAfter = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('tr[title]')).map(r => r.getAttribute('title'))
+    );
+    console.error('[openSuborder] STEP 6: coords null - tr[title] in DOM now:', JSON.stringify(allTitlesAfter));
+    throw new Error(`Row not found for title: ${title}`);
+  }
+
+  // --- STEP 7: Sanity check coords are in reasonable viewport range ---
+  const viewportSize = page.viewportSize();
+  console.log('[openSuborder] STEP 7: viewport size:', JSON.stringify(viewportSize));
+  console.log(`[openSuborder] STEP 7: click target x=${coords.x}, y=${coords.y}`);
+  if (coords.y < 0 || (viewportSize && coords.y > viewportSize.height)) {
+    console.warn('[openSuborder] STEP 7: WARNING - y coordinate is outside viewport! Row may not have scrolled correctly.');
+  }
+
+  // --- STEP 8: Wait for scroll to settle, then dblclick ---
+  console.log('[openSuborder] STEP 8: waiting 400ms for scroll to settle...');
+  await delay(400);
+
+  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
+  console.log('[openSuborder] STEP 8: firing dblclick at', coords.x, coords.y);
   await page.mouse.dblclick(coords.x, coords.y);
+  console.log('[openSuborder] STEP 8: dblclick fired, waiting for new tab...');
 
-  const newTab = await newTabPromise;
+  // --- STEP 9: Wait for new tab ---
+  let newTab;
+  try {
+    newTab = await newTabPromise;
+    console.log('[openSuborder] STEP 9: new tab opened, url:', await newTab.url());
+  } catch (e) {
+    console.error('[openSuborder] STEP 9: new tab did NOT open within 30s:', e.message);
+    // Take a screenshot for debugging
+    await page.screenshot({ path: 'debug-no-new-tab.png' });
+    console.log('[openSuborder] STEP 9: screenshot saved to debug-no-new-tab.png');
+    throw e;
+  }
+
+  // --- STEP 10: Wait for new tab to load ---
+  console.log('[openSuborder] STEP 10: waiting for domcontentloaded on new tab...');
   await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  console.log('[openSuborder] STEP 10: new tab loaded, url:', await newTab.url());
+
   await newTab.bringToFront();
   this.newTab = newTab;
   this.page = newTab;
+
+  console.log('=== [openSuborder] END - success ===');
 });

@@ -10,71 +10,85 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
     await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 15000 });
     console.log('[openSuborder] STEP 1: spinner hidden ✓');
   } catch (e) {
-    console.warn('[openSuborder] STEP 1: spinner skip:', e.message);
+    console.warn('[openSuborder] STEP 1: spinner skip:', (e as Error).message);
   }
 
-  // --- STEP 2: Locate row ---
+  // --- STEP 2: Locate row by text ---
+  console.log(`[openSuborder] STEP 2: locating row containing text "${locator}"...`);
   const rowLocator = page.locator('tr', { hasText: locator }).first();
   await rowLocator.waitFor({ state: 'attached', timeout: 30000 });
-  console.log('[openSuborder] STEP 2: row attached ✓');
+  console.log('[openSuborder] STEP 2: row attached ✓, count:', await rowLocator.count());
 
-  // --- STEP 3: Deep inspect - find all anchors, buttons, clickable children ---
-  console.log('[openSuborder] STEP 3: deep inspect row for links/buttons/click handlers...');
-  const rowInspect = await rowLocator.evaluate((row) => {
-    const anchors = Array.from(row.querySelectorAll('a')).map(a => ({
-      tag: 'A', href: a.href, text: a.textContent?.trim(), id: a.id
-    }));
-    const buttons = Array.from(row.querySelectorAll('button')).map(b => ({
-      tag: 'BUTTON', text: b.textContent?.trim(), id: b.id
-    }));
-    const allChildren = Array.from(row.querySelectorAll('*')).map(el => {
-      const style = window.getComputedStyle(el);
-      return {
-        tag: el.tagName,
-        id: el.id,
-        className: el.className,
-        cursor: style.cursor,
-        hasClickListener: typeof (el as any).onclick === 'function',
-        text: el.textContent?.trim().substring(0, 50),
-      };
-    }).filter(el => el.cursor === 'pointer' || el.tag === 'A' || el.tag === 'BUTTON');
+  // --- STEP 3: Log row outerHTML and parent info ---
+  const rowHtml = await rowLocator.evaluate((el) => (el as HTMLElement).outerHTML);
+  console.log('[openSuborder] STEP 3: row outerHTML:', rowHtml);
 
-    // Check if row itself has onclick
-    const rowStyle = window.getComputedStyle(row);
+  const parentInfo = await rowLocator.evaluate((el) => {
+    const row = el as HTMLElement;
+    const parent = row.parentElement;
+    const grandParent = parent?.parentElement;
     return {
-      anchors,
-      buttons,
-      clickableChildren: allChildren,
-      rowCursor: rowStyle.cursor,
-      rowOnclick: typeof (row as any).onclick === 'function',
-      rowHasEventListeners: row.getAttribute('onclick'),
+      parentTag: parent?.tagName,
+      parentId: parent?.id,
+      grandParentTag: grandParent?.tagName,
+      grandParentId: grandParent?.id,
+      grandParentOverflow: grandParent ? window.getComputedStyle(grandParent).overflow : null,
     };
   });
-  console.log('[openSuborder] STEP 3: row inspect:', JSON.stringify(rowInspect, null, 2));
+  console.log('[openSuborder] STEP 3: parent info:', JSON.stringify(parentInfo));
 
-  // --- STEP 4: Check if suborder ID can be used to construct direct URL ---
-  const suborderId = await rowLocator.evaluate((row) => {
+  // --- STEP 4: Extract hidden suborder ID ---
+  const suborderId = await rowLocator.evaluate((el) => {
+    const row = el as HTMLElement;
     const hiddenTd = row.querySelector('td[style*="display:none"]');
-    return hiddenTd?.textContent?.trim() ?? null;
+    return (hiddenTd as HTMLElement)?.textContent?.trim() ?? null;
   });
-  console.log('[openSuborder] STEP 4: suborder hidden ID:', suborderId);
+  console.log('[openSuborder] STEP 4: hidden suborder ID:', suborderId);
 
-  // Try direct URL navigation if we have an ID
-  if (suborderId) {
-    const currentUrl = page.url();
-    const possibleUrls = [
-      `${currentUrl}/suborders/${suborderId}`,
-      `${currentUrl.replace(/\/$/, '')}/suborder/${suborderId}`,
-      page.url().replace(/ngsd\/[^/]+/, `ngsd/${suborderId}`),
-    ];
-    console.log('[openSuborder] STEP 4: possible suborder URLs:', possibleUrls);
-  }
+  // --- STEP 5: scrollIntoView + coords + element at point ---
+  const coords = await page.evaluate((text: string) => {
+    const tds = Array.from(document.querySelectorAll('td')) as HTMLTableCellElement[];
+    const matchingTd = tds.find(td => td.textContent?.trim() === text);
+    if (!matchingTd) return null;
+    const row = matchingTd.closest('tr') as HTMLElement | null;
+    if (!row) return null;
+    row.scrollIntoView({ behavior: 'instant', block: 'center' });
+    const rect = row.getBoundingClientRect();
+    const style = window.getComputedStyle(row);
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const topEl = document.elementFromPoint(centerX, centerY) as HTMLElement | null;
+    return {
+      x: centerX,
+      y: centerY,
+      rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      display: style.display,
+      visibility: style.visibility,
+      opacity: style.opacity,
+      cursor: style.cursor,
+      topElementTag: topEl?.tagName ?? null,
+      topElementId: topEl?.id ?? null,
+      topElementClass: topEl?.className ?? null,
+      topElementText: topEl?.textContent?.substring(0, 100) ?? null,
+    };
+  }, locator);
+
+  console.log('[openSuborder] STEP 5: coords + style:', JSON.stringify(coords, null, 2));
+  if (!coords) throw new Error(`Row not found for text: ${locator}`);
+
+  // --- STEP 6: Check all _blank anchors and window.open ---
+  const pageAnchors = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('a[target="_blank"], a[href*="suborder"]') as NodeListOf<HTMLAnchorElement>)
+      .map(a => ({ href: a.href, text: a.textContent?.trim() }));
+  });
+  console.log('[openSuborder] STEP 6: _blank/suborder anchors:', JSON.stringify(pageAnchors));
+
+  const windowOpenStr = await page.evaluate(() => window.open.toString().substring(0, 300));
+  console.log('[openSuborder] STEP 6: window.open impl:', windowOpenStr);
 
   await delay(400);
 
-  // --- STEP 5: Try dispatch native events directly on the row element ---
-  console.log('[openSuborder] STEP 5: trying native dispatchEvent on row...');
-
+  // --- STEP 7: Try all strategies ---
   const tryGetNewTab = async (action: () => Promise<void>, label: string): Promise<any> => {
     const pagesBefore = this.browserContext.pages().length;
     const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 6000 }).catch(() => null);
@@ -83,74 +97,90 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
     const newTabResult = await newTabPromise;
     const pagesAfter = this.browserContext.pages();
     console.log(`[openSuborder] ${label}: before=${pagesBefore} after=${pagesAfter.length} newTabEvent=${!!newTabResult}`);
+    pagesAfter.forEach((p, i) => console.log(`  page[${i}]: ${p.url()}`));
     if (newTabResult) return newTabResult;
     if (pagesAfter.length > pagesBefore) return pagesAfter[pagesAfter.length - 1];
     return null;
   };
 
-  // Strategy A: dispatch dblclick event natively on the row
-  let newTab = await tryGetNewTab(async () => {
-    await rowLocator.evaluate((row) => {
-      row.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
-    });
-  }, 'STEP 5A: native dblclick dispatchEvent');
+  // A: mouse dblclick at coords
+  let newTab = await tryGetNewTab(
+    () => page.mouse.dblclick(coords.x, coords.y),
+    'STEP 7A mouse.dblclick'
+  );
 
-  // Strategy B: dispatch click natively
+  // B: Playwright locator dblclick
+  if (!newTab) {
+    newTab = await tryGetNewTab(
+      () => rowLocator.dblclick({ timeout: 5000 }),
+      'STEP 7B rowLocator.dblclick'
+    );
+  }
+
+  // C: native dispatchEvent dblclick on row
   if (!newTab) {
     newTab = await tryGetNewTab(async () => {
-      await rowLocator.evaluate((row) => {
-        row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      await rowLocator.evaluate((el) => {
+        (el as HTMLElement).dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
       });
-    }, 'STEP 5B: native click dispatchEvent');
+    }, 'STEP 7C dispatchEvent dblclick');
   }
 
-  // Strategy C: click the name TD specifically (not the whole row)
+  // D: native dispatchEvent click on row
   if (!newTab) {
-    const nameTd = page.locator('td', { hasText: locator }).first();
-    newTab = await tryGetNewTab(
-      () => nameTd.dblclick({ timeout: 5000 }),
-      'STEP 5C: dblclick on name TD directly'
-    );
-  }
-
-  // Strategy D: click name TD single click
-  if (!newTab) {
-    const nameTd = page.locator('td', { hasText: locator }).first();
-    newTab = await tryGetNewTab(
-      () => nameTd.click({ timeout: 5000 }),
-      'STEP 5D: single click on name TD'
-    );
-  }
-
-  // Strategy E: navigate directly to suborder URL
-  if (!newTab && suborderId) {
-    console.log('[openSuborder] STEP 5E: trying direct URL navigation with suborder ID...');
-    const baseUrl = page.url().replace(/\/$/, '');
-    const directUrl = `${baseUrl}/suborders/${suborderId}`;
-    console.log('[openSuborder] STEP 5E: navigating to:', directUrl);
     newTab = await tryGetNewTab(async () => {
-      await page.goto(directUrl);
-    }, 'STEP 5E: direct URL navigation');
-    if (!newTab) {
-      // Maybe it navigated in same tab
-      console.log('[openSuborder] STEP 5E: current url after goto:', page.url());
-      if (page.url() !== baseUrl + '/') {
-        console.log('[openSuborder] STEP 5E: same-tab navigation detected ✓');
-        newTab = page;
-      }
+      await rowLocator.evaluate((el) => {
+        (el as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+    }, 'STEP 7D dispatchEvent click');
+  }
+
+  // E: single click on name TD specifically
+  if (!newTab) {
+    newTab = await tryGetNewTab(
+      () => page.locator('td', { hasText: locator }).first().click({ timeout: 5000 }),
+      'STEP 7E td.click'
+    );
+  }
+
+  // F: Ctrl+click
+  if (!newTab) {
+    newTab = await tryGetNewTab(async () => {
+      await page.keyboard.down('Control');
+      await page.mouse.click(coords.x, coords.y);
+      await page.keyboard.up('Control');
+    }, 'STEP 7F Ctrl+click');
+  }
+
+  // G: direct URL navigation using hidden suborder ID
+  if (!newTab && suborderId) {
+    console.log('[openSuborder] STEP 7G: trying direct URL navigation...');
+    const baseUrl = page.url().replace(/\/$/, '');
+    const candidates = [
+      `${baseUrl}/suborders/${suborderId}`,
+      `${baseUrl}/suborder/${suborderId}`,
+    ];
+    console.log('[openSuborder] STEP 7G: candidate URLs:', candidates);
+    newTab = await tryGetNewTab(
+      () => page.goto(candidates[0]).then(() => {}),
+      'STEP 7G direct URL'
+    );
+    if (!newTab && page.url() !== baseUrl + '/') {
+      console.log('[openSuborder] STEP 7G: same-tab navigation detected, url:', page.url());
+      newTab = page;
     }
   }
 
   if (!newTab) {
     await page.screenshot({ path: 'debug-no-new-tab.png' });
     console.error('[openSuborder] all strategies failed - screenshot saved');
-    throw new Error(`Could not open suborder "${locator}" - all strategies exhausted`);
+    throw new Error(`Could not open suborder "${locator}" - all strategies exhausted. Check debug-no-new-tab.png`);
   }
 
-  // --- STEP 6: Load ---
-  console.log('[openSuborder] STEP 6: new tab url:', await newTab.url());
+  // --- STEP 8: Load new tab ---
+  console.log('[openSuborder] STEP 8: new tab url:', await newTab.url());
   await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
-  console.log('[openSuborder] STEP 6: loaded ✓');
+  console.log('[openSuborder] STEP 8: loaded ✓ url:', await newTab.url());
 
   await newTab.bringToFront();
   this.newTab = newTab;

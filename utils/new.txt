@@ -2,100 +2,63 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
   console.log('=== [openSuborder] START ===');
   console.log('[openSuborder] raw locator string:', locator);
 
-  let title: string;
-  if (locator === 'Natco Installation Poland') title = 'natco_installation';
-  else title = locator.toLowerCase().replaceAll(' ', '_');
+  const page = this.page;
+  console.log('[openSuborder] this.page url:', page.url());
 
-  console.log('[openSuborder] computed title attribute:', title);
-
-  // --- STEP 0: Log all open pages in context ---
-  console.log('[openSuborder] STEP 0: listing all open pages in browserContext...');
-  const allPages = this.browserContext.pages();
-  console.log('[openSuborder] STEP 0: total open pages:', allPages.length);
-  for (let i = 0; i < allPages.length; i++) {
-    console.log(`[openSuborder] STEP 0: page[${i}] url:`, allPages[i].url());
-    console.log(`[openSuborder] STEP 0: page[${i}] title:`, await allPages[i].title());
-  }
-
-  // --- STEP 0b: Log current this.page ---
-  console.log('[openSuborder] STEP 0b: this.page url:', this.page.url());
-  console.log('[openSuborder] STEP 0b: this.page title:', await this.page.title());
-
-  // --- STEP 1: Find the correct page that has #taskstable ---
-  console.log('[openSuborder] STEP 1: searching for page containing #taskstable across all open pages...');
-  let targetPage = null;
-  for (let i = 0; i < allPages.length; i++) {
-    const p = allPages[i];
-    const hasTasksTable = await p.evaluate(() => !!document.querySelector('#taskstable'));
-    const hasTaskSuborders = await p.evaluate(() => !!document.querySelector('#tasksuborders'));
-    const trTitles = await p.evaluate(() =>
-      Array.from(document.querySelectorAll('tr[title]')).map(r => r.getAttribute('title'))
-    );
-    console.log(`[openSuborder] STEP 1: page[${i}] url=${p.url()}`);
-    console.log(`[openSuborder] STEP 1: page[${i}] #taskstable exists: ${hasTasksTable}`);
-    console.log(`[openSuborder] STEP 1: page[${i}] #tasksuborders exists: ${hasTaskSuborders}`);
-    console.log(`[openSuborder] STEP 1: page[${i}] tr[title] values:`, JSON.stringify(trTitles));
-    if (trTitles.includes(title)) {
-      console.log(`[openSuborder] STEP 1: FOUND target row on page[${i}] ✓`);
-      targetPage = p;
-    }
-  }
-
-  if (!targetPage) {
-    console.warn('[openSuborder] STEP 1: target row not found on any page yet - falling back to this.page');
-    targetPage = this.page;
-  }
-
-  console.log('[openSuborder] STEP 1: using targetPage url:', targetPage.url());
-  const page = targetPage;
-
-  // --- STEP 2: Wait for spinner to disappear on target page ---
-  console.log('[openSuborder] STEP 2: waiting for spinner #taskSuborderTabSpinner to be hidden...');
+  // --- STEP 1: Wait for spinner ---
+  console.log('[openSuborder] STEP 1: waiting for spinner to hide...');
   try {
-    await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 30000 });
-    console.log('[openSuborder] STEP 2: spinner hidden ✓');
+    await page.locator('#taskSuborderTabSpinner').waitFor({ state: 'hidden', timeout: 15000 });
+    console.log('[openSuborder] STEP 1: spinner hidden ✓');
   } catch (e) {
-    console.warn('[openSuborder] STEP 2: spinner wait failed or not found - continuing:', e.message);
+    console.warn('[openSuborder] STEP 1: spinner not found or already hidden:', e.message);
   }
 
-  // --- STEP 3: Dump all tr[title] on target page ---
-  console.log('[openSuborder] STEP 3: dumping all tr[title] on targetPage...');
-  const allTitles = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('tr[title]')).map(r => r.getAttribute('title'))
-  );
-  console.log('[openSuborder] STEP 3: tr[title] count:', allTitles.length);
-  console.log('[openSuborder] STEP 3: tr[title] values:', JSON.stringify(allTitles));
+  // --- STEP 2: Find row by text content ---
+  // The table uses <td style="text-align:left;">Natco Installation Slovakia</td>
+  // with NO title on <tr>, so we locate by visible text inside the row
+  console.log(`[openSuborder] STEP 2: locating row containing text "${locator}"...`);
 
-  // --- STEP 4: Wait for target row to be attached ---
-  console.log(`[openSuborder] STEP 4: waiting for tr[title="${title}"] to be attached...`);
-  const rowLocator = page.locator(`tr[title="${title}"]`);
-  const rowCountBefore = await rowLocator.count();
-  console.log('[openSuborder] STEP 4: row count before waitFor:', rowCountBefore);
+  // Find the <tr> that contains a <td> with exact text matching locator
+  const rowLocator = page.locator('tr', { hasText: locator }).first();
 
+  // --- STEP 3: Wait for row attached ---
+  console.log('[openSuborder] STEP 3: waiting for row to be attached...');
   try {
     await rowLocator.waitFor({ state: 'attached', timeout: 30000 });
-    console.log('[openSuborder] STEP 4: row attached ✓');
+    const count = await rowLocator.count();
+    console.log('[openSuborder] STEP 3: row attached ✓, count:', count);
   } catch (e) {
-    console.error('[openSuborder] STEP 4: waitFor attached FAILED:', e.message);
-    const tableHtml = await page.evaluate(() => {
-      const t = document.querySelector('#taskstable') ?? document.querySelector('table');
-      return t ? t.outerHTML.substring(0, 5000) : 'NO TABLE FOUND';
-    });
-    console.error('[openSuborder] STEP 4: table HTML dump:\n', tableHtml);
+    console.error('[openSuborder] STEP 3: row not found by text:', e.message);
+    // Dump all td texts for debugging
+    const allTdTexts = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('td[style*="text-align:left"], td[style*="text-align: left"]'))
+        .map(td => td.textContent?.trim())
+        .filter(Boolean)
+    );
+    console.error('[openSuborder] STEP 3: all left-aligned td texts:', JSON.stringify(allTdTexts));
     throw e;
   }
 
-  // --- STEP 5: Check row visibility ---
-  console.log('[openSuborder] STEP 5: checking row visibility state...');
+  // --- STEP 4: Check visibility ---
   const isVisible = await rowLocator.isVisible();
-  const isHidden = await rowLocator.isHidden();
-  console.log(`[openSuborder] STEP 5: isVisible=${isVisible}, isHidden=${isHidden}`);
+  console.log(`[openSuborder] STEP 4: row isVisible=${isVisible}`);
 
-  // --- STEP 6: scrollIntoView + getBoundingClientRect ---
-  console.log('[openSuborder] STEP 6: scrollIntoView and getBoundingClientRect...');
-  const coords = await page.evaluate((t) => {
-    const row = document.querySelector(`tr[title="${t}"]`);
-    if (!row) return null;
+  // --- STEP 5: scrollIntoView + coords via JS ---
+  console.log('[openSuborder] STEP 5: scrollIntoView + getBoundingClientRect...');
+  const coords = await page.evaluate((text) => {
+    // Find all tds with matching text, get their parent tr
+    const tds = Array.from(document.querySelectorAll('td'));
+    const matchingTd = tds.find(td => td.textContent?.trim() === text);
+    if (!matchingTd) {
+      console.log('[evaluate] no td found with text:', text);
+      return null;
+    }
+    const row = matchingTd.closest('tr');
+    if (!row) {
+      console.log('[evaluate] td found but no parent tr');
+      return null;
+    }
     row.scrollIntoView({ behavior: 'instant', block: 'center' });
     const rect = row.getBoundingClientRect();
     const style = window.getComputedStyle(row);
@@ -107,54 +70,56 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
       visibility: style.visibility,
       opacity: style.opacity,
     };
-  }, title);
+  }, locator);
 
-  console.log('[openSuborder] STEP 6: coords + style:', JSON.stringify(coords));
+  console.log('[openSuborder] STEP 5: coords + style:', JSON.stringify(coords));
 
   if (!coords) {
-    const allTitlesAfter = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('tr[title]')).map(r => r.getAttribute('title'))
+    const allTexts = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('td'))
+        .map(td => td.textContent?.trim())
+        .filter(Boolean)
     );
-    console.error('[openSuborder] STEP 6: coords null - tr[title] now:', JSON.stringify(allTitlesAfter));
-    throw new Error(`Row not found for title: ${title}`);
+    console.error('[openSuborder] STEP 5: coords null - all td texts:', JSON.stringify(allTexts));
+    throw new Error(`Row not found for text: ${locator}`);
   }
 
-  // --- STEP 7: Viewport sanity check ---
+  // --- STEP 6: Viewport sanity check ---
   const viewportSize = page.viewportSize();
-  console.log('[openSuborder] STEP 7: viewport:', JSON.stringify(viewportSize));
-  console.log(`[openSuborder] STEP 7: dblclick target x=${coords.x}, y=${coords.y}`);
-  if (coords.y < 0 || (viewportSize && coords.y > viewportSize.height)) {
-    console.warn('[openSuborder] STEP 7: WARNING - y is outside viewport, scroll may not have worked');
-  }
+  console.log('[openSuborder] STEP 6: viewport:', JSON.stringify(viewportSize));
+  console.log(`[openSuborder] STEP 6: dblclick target x=${coords.x}, y=${coords.y}`);
   if (coords.rect.width === 0 || coords.rect.height === 0) {
-    console.warn('[openSuborder] STEP 7: WARNING - row has zero dimensions, likely not rendered');
+    console.warn('[openSuborder] STEP 6: WARNING - zero dimensions on row');
+  }
+  if (coords.y < 0 || (viewportSize && coords.y > viewportSize.height)) {
+    console.warn('[openSuborder] STEP 6: WARNING - y outside viewport');
   }
 
-  // --- STEP 8: Settle + dblclick ---
-  console.log('[openSuborder] STEP 8: waiting 400ms for scroll to settle...');
+  // --- STEP 7: Settle + dblclick ---
+  console.log('[openSuborder] STEP 7: waiting 400ms then dblclick...');
   await delay(400);
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
-  console.log('[openSuborder] STEP 8: firing dblclick...');
+  console.log('[openSuborder] STEP 7: firing dblclick at', coords.x, coords.y);
   await page.mouse.dblclick(coords.x, coords.y);
-  console.log('[openSuborder] STEP 8: dblclick fired, waiting for new tab...');
+  console.log('[openSuborder] STEP 7: dblclick fired, waiting for new tab...');
 
-  // --- STEP 9: New tab ---
+  // --- STEP 8: New tab ---
   let newTab;
   try {
     newTab = await newTabPromise;
-    console.log('[openSuborder] STEP 9: new tab opened ✓ url:', await newTab.url());
+    console.log('[openSuborder] STEP 8: new tab opened ✓ url:', await newTab.url());
   } catch (e) {
-    console.error('[openSuborder] STEP 9: no new tab opened within 30s:', e.message);
+    console.error('[openSuborder] STEP 8: no new tab within 30s:', e.message);
     await page.screenshot({ path: 'debug-no-new-tab.png' });
-    console.log('[openSuborder] STEP 9: screenshot saved → debug-no-new-tab.png');
+    console.log('[openSuborder] STEP 8: screenshot saved → debug-no-new-tab.png');
     throw e;
   }
 
-  // --- STEP 10: Load new tab ---
-  console.log('[openSuborder] STEP 10: waiting for domcontentloaded...');
+  // --- STEP 9: Load new tab ---
+  console.log('[openSuborder] STEP 9: waiting for domcontentloaded...');
   await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
-  console.log('[openSuborder] STEP 10: new tab loaded, url:', await newTab.url());
+  console.log('[openSuborder] STEP 9: loaded, url:', await newTab.url());
 
   await newTab.bringToFront();
   this.newTab = newTab;

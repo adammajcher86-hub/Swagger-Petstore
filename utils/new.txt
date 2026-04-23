@@ -12,41 +12,57 @@ export const datePicker = async (page: Page, days: number, dateType: string) => 
   console.log(`[datePicker] days=${days}, dateType=${dateType}`);
   console.log(`[datePicker] targetDay=${targetDayString}, targetMonth=${targetMonth}, targetMonthNo=${targetMonthNo}, targetYear=${targetYear}`);
 
-  // --- Resolve container selector ---
   const { container } = getDateSelectors(dateType);
   console.log(`[datePicker] container selector: ${container}`);
 
-  // --- Wait for duet-date-picker dialog to open ---
-  // NOTE: CSS space-separated selectors do NOT pierce shadow DOM in Playwright.
-  // Chained .locator() calls are required to cross shadow root boundaries.
-  console.log('[datePicker] waiting for duet-date-picker dialog to be visible...');
-  await page
+  // --- Wait for dialog: try chained locator (shadow DOM pierce) first,
+  //     fall back to legacy CSS string (works when no shadow root) ---
+  console.log('[datePicker] waiting for duet-date-picker dialog...');
+
+  const chainedDialog = page
     .locator(container)
     .locator('duet-date-picker')
-    .locator('.duet-date__dialog[aria-hidden="false"]')
-    .waitFor({ state: 'visible', timeout: 10000 });
-  console.log('[datePicker] dialog visible ✓');
+    .locator('.duet-date__dialog[aria-hidden="false"]');
+
+  const legacyDialog = page.locator(
+    `${container} duet-date-picker .duet-date__dialog[aria-hidden="false"]`
+  );
+
+  let useShadowPierce: boolean;
+  try {
+    await chainedDialog.waitFor({ state: 'visible', timeout: 10000 });
+    useShadowPierce = true;
+    console.log('[datePicker] dialog visible via chained locator (shadow DOM) ✓');
+  } catch {
+    console.warn('[datePicker] chained locator timed out - trying legacy CSS selector...');
+    await legacyDialog.waitFor({ state: 'visible', timeout: 10000 });
+    useShadowPierce = false;
+    console.log('[datePicker] dialog visible via legacy CSS selector ✓');
+  }
+
+  // --- Helper to build correct locator based on which strategy worked ---
+  const pickerLocator = (innerSelector: string) => {
+    if (useShadowPierce) {
+      return page
+        .locator(container)
+        .locator('duet-date-picker')
+        .locator(innerSelector);
+    }
+    return page.locator(`${container} duet-date-picker ${innerSelector}`);
+  };
 
   // --- Select month ---
   console.log(`[datePicker] selecting month: ${targetMonth}`);
-  await page
-    .locator(container)
-    .locator('duet-date-picker')
-    .locator('.duet-date__select--month')
-    .selectOption({ label: targetMonth });
+  await pickerLocator('.duet-date__select--month').selectOption({ label: targetMonth });
   console.log('[datePicker] month selected ✓');
 
   // --- Select year (only if different from current year) ---
   if (targetYear !== currentYear) {
     console.log(`[datePicker] selecting year: ${targetYear}`);
-    await page
-      .locator(container)
-      .locator('duet-date-picker')
-      .locator('.duet-date__select--year')
-      .selectOption({ label: targetYear });
+    await pickerLocator('.duet-date__select--year').selectOption({ label: targetYear });
     console.log('[datePicker] year selected ✓');
   } else {
-    console.log(`[datePicker] year unchanged (${targetYear}), skipping year selection`);
+    console.log(`[datePicker] year unchanged (${targetYear}), skipping`);
   }
 
   // --- Click target day button ---
@@ -56,9 +72,8 @@ export const datePicker = async (page: Page, days: number, dateType: string) => 
   await expect(dayButton).toBeEnabled({ timeout: 5000 });
   console.log('[datePicker] day button enabled ✓, clicking...');
   await dayButton.click();
-  console.log('[datePicker] day button clicked ✓');
+  console.log('[datePicker] day clicked ✓');
 
-  // --- Return formatted date for verification ---
   const formattedDate = `${targetYear}-${targetMonthNo}-${targetDayString}`;
   console.log(`[datePicker] returning formattedDate: ${formattedDate}`);
   return formattedDate;

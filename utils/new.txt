@@ -1,18 +1,29 @@
-// Check event listeners on the tr and its parents
-const row = document.querySelector('tr[title="natco_installation_slovakia"]');
-const td = row.querySelector('td[title]') || row.querySelectorAll('td')[1];
+When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
+  const page = this.page;
+  await delay(5000);
+  let title: string;
+  if (locator === 'Natco Installation Poland') title = 'natco_installation';
+  else title = locator.toLowerCase().replaceAll(' ', '_');
 
-// Get all ancestors up to body
-let el = td;
-while (el && el !== document.body) {
-  const listeners = getEventListeners(el);
-  if (Object.keys(listeners).length > 0) {
-    console.log('listeners on:', el.tagName, el.id, el.className, listeners);
-  }
-  el = el.parentElement;
-}
+  console.log('....User opens {string} suborder: begin of method');
+  console.log('title:', title);
 
+  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
-const td = document.querySelector('tr[title="natco_installation_slovakia"] td:nth-child(2)');
-console.log('td:', td);
-console.log('td text:', td?.textContent);
+  // Target the text TD inside the correct TR
+  const cell = page.locator(`#tasksuborders tbody tr[title='${title}'] td[title]`);
+  console.log('scrolling into view...');
+  await cell.scrollIntoViewIfNeeded();
+  await delay(500);
+  console.log('dblclicking...');
+  await cell.dblclick();
+
+  console.log('waiting for new tab...');
+  const newTab = await newTabPromise;
+  console.log('new tab url:', await newTab.url());
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  await newTab.bringToFront();
+  this.newTab = newTab;
+  this.page = newTab;
+});

@@ -10,13 +10,8 @@ When('User opens {string} suborder', { timeout: 60000 }, async function (locator
 
   const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
 
-  // Target the text TD inside the correct TR
-  const cell = page.locator(`#tasksuborders tbody tr[title='${title}'] td[title]`);
-  console.log('scrolling into view...');
-  await cell.scrollIntoViewIfNeeded();
-  await delay(500);
   console.log('dblclicking...');
-  await cell.dblclick();
+  await page.locator(`#tasksuborders tbody tr[title='${title}']`).dblclick({ force: true });
 
   console.log('waiting for new tab...');
   const newTab = await newTabPromise;

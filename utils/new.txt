@@ -1,21 +1,49 @@
-When('Verify status of the tasks & Suborders:', async function (dataTable: DataTable) {
+When('User select {string} from {string} dropdown', async function (dropdownOption: string, dropdown: string) {
   const page = this.page;
   await waitForPageLoad(page);
-  await selectTab(page, 'Tasks & SubOrders');
+  await page.locator(LOCATORS[dropdown]).click({ force: true });
 
-  const tableData = dataTable.hashes();
+  if (dropdown === 'Actions') {
+    await delay(2000);
 
-  for (const data of tableData) {
-    const taskName = data['Task Name'];
-    const expectedStatus = data['Status'];
+    console.log(`[dropdown] looking for option: "${dropdownOption}"`);
 
-    console.log(`[verifyStatus] waiting for "${taskName}" to have status "${expectedStatus}"...`);
+    // Map known deeply shadow-nested items to their value attribute
+    const shadowNestedItems: { [key: string]: string } = {
+      'Set cRFU': 'set Crfu date',
+      'Set eRFU': 'set Erfu date',
+      'Set aRFU': 'set Arfu date',
+    };
 
-    // Poll instead of fixed delay - wait up to 30s for status to match
-    await expect(
-      page.locator(LOCATORS.statusOfTaskOrSuborder(taskName))
-    ).toContainText(expectedStatus, { timeout: 30000 });
+    if (shadowNestedItems[dropdownOption]) {
+      const valueAttr = shadowNestedItems[dropdownOption];
+      console.log(`[dropdown] shadow-nested item detected - looking for value="${valueAttr}"`);
 
-    console.log(`[verifyStatus] "${taskName}" = "${expectedStatus}" ✓`);
+      // Debug: dump all elements with value attribute in DOM
+      const allValueElements = await page.evaluate(() => {
+        return Array.from(document.querySelectorAll('[value]'))
+          .map(el => ({
+            tag: el.tagName,
+            id: (el as HTMLElement).id,
+            value: el.getAttribute('value'),
+            text: el.textContent?.trim().substring(0, 80),
+          }))
+          .filter(el => el.value && el.value.length > 0);
+      });
+      console.log('[dropdown] all [value] elements in DOM:', JSON.stringify(allValueElements, null, 2));
+
+      await page.locator(`[value="${valueAttr}"]`).click({ timeout: 10000 });
+      console.log(`[dropdown] shadow-nested item clicked ✓`);
+    } else {
+      console.log(`[dropdown] standard item - clicking by text`);
+      const optionLocator = page.locator(`text="${dropdownOption}"`).filter({ visible: true });
+      await optionLocator.first().waitFor({ state: 'visible', timeout: 5000 });
+      await optionLocator.first().click();
+      console.log(`[dropdown] standard item clicked ✓`);
+    }
+  } else {
+    await page.getByRole('option', { name: dropdownOption }).locator('scale-dropdown-select-item').click();
   }
+
+  await waitForPageLoad(page);
 });

@@ -1,20 +1,76 @@
-cRFU: {
-  month: LOCATORS['month selector'] + '[4]',
-  year:  LOCATORS['year selector'] + '[4]',
-  container: 'scale-date-picker#cRfusetdate',  // was #committedrfcsetDiv - WRONG
-},
-eRFU: {
-  month: LOCATORS['month selector'] + '[3]',
-  year:  LOCATORS['year selector'] + '[3]',
-  container: 'scale-date-picker#eRfusetdate',  // was #committedrfcsetDiv - WRONG
-},
+When(
+  'User selects {int} days from today on {string} calendar using toggle and verify {string}',
+  { timeout: 30000 },
+  async function (days: number, calendarLocator: string, settedDateLocator: string) {
+    const page = this.page;
 
+    console.log(`[selectDateToggle] calendarLocator="${calendarLocator}" settedDateLocator="${settedDateLocator}"`);
 
-When User selects 12 days from today on "cRFU Calender" calendar using toggle and verify "cRFU set date"
+    // --- DEBUG: dump all date picker elements in current DOM ---
+    const scalePickers = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('scale-date-picker'))
+        .map(el => ({
+          id: el.id,
+          name: el.getAttribute('name'),
+          label: el.getAttribute('label'),
+          classes: el.className,
+        }));
+    });
+    console.log('[selectDateToggle] all scale-date-picker elements:', JSON.stringify(scalePickers, null, 2));
 
+    const duetPickers = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('duet-date-picker'))
+        .map(el => ({
+          id: el.id,
+          value: el.getAttribute('value'),
+          parentId: (el.parentElement as HTMLElement)?.id,
+          parentTag: el.parentElement?.tagName,
+          grandParentId: (el.parentElement?.parentElement as HTMLElement)?.id,
+          grandParentTag: el.parentElement?.parentElement?.tagName,
+        }));
+    });
+    console.log('[selectDateToggle] all duet-date-picker elements:', JSON.stringify(duetPickers, null, 2));
 
-const containerMap: { [key: string]: string } = {
-  'eRFU set date': 'scale-date-picker#eRfusetdate',
-  'cRFU set date': 'scale-date-picker#cRfusetdate',  // add this
-  ...
-};
+    // --- Map settedDateLocator to container ---
+    const containerMap: { [key: string]: string } = {
+      'eRFU set date':          'scale-date-picker#eRfusetdate',
+      'cRFU set date':          'scale-date-picker#cRfusetdate',
+      'ERFC set date':          'scale-date-picker#erfcsetdate',
+      'ARFC set date':          'scale-date-picker#arfcsetdate',
+      'RFS set date':           'scale-date-picker#actualrfssetdate',
+      'aRFU set date':          'scale-date-picker#aRfusetdate',
+      'Billing start set date': 'scale-date-picker#billingstartdate',
+    };
+
+    const container = containerMap[settedDateLocator];
+    if (!container) throw new Error(`No container mapping for settedDateLocator: "${settedDateLocator}"`);
+    console.log(`[selectDateToggle] resolved container: ${container}`);
+
+    // --- Click duet toggle button directly ---
+    console.log('[selectDateToggle] clicking duet-date__toggle...');
+    await page
+      .locator(`${container} button.duet-date__toggle`)
+      .click({ timeout: 10000 });
+    console.log('[selectDateToggle] toggle clicked ✓');
+
+    // --- Wait for dialog to open ---
+    console.log('[selectDateToggle] waiting for dialog to open...');
+    await page
+      .locator(`${container} .duet-date__dialog[aria-hidden="false"]`)
+      .waitFor({ state: 'visible', timeout: 10000 });
+    console.log('[selectDateToggle] dialog open ✓');
+
+    const desiredSelectedDate = await datePicker(page, days, settedDateLocator);
+    await delay(1000);
+
+    const [year, month, day] = desiredSelectedDate.split('-');
+    this.desiredDate = `${day}.${month}.${year}`;
+
+    const settedDate = await page
+      .locator(`${LOCATORS.idLocator(LOCATORS[settedDateLocator])}/descendant::duet-date-picker`)
+      .getAttribute('value');
+
+    console.log(`[selectDateToggle] settedDate="${settedDate}" desiredDate="${desiredSelectedDate}"`);
+    expect(settedDate).toContain(desiredSelectedDate);
+  }
+);

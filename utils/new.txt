@@ -1,3 +1,14 @@
+// Debug: dump all button names visible on page to find correct format
+const allButtonNames = await page.evaluate(() => {
+  return Array.from(document.querySelectorAll('button'))
+    .map(b => b.getAttribute('aria-label') ?? b.textContent?.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+});
+console.log('[datePicker] all button names:', JSON.stringify(allButtonNames));
+
+
+
 When(
   'User selects {int} days from today on {string} calendar using toggle and verify {string}',
   { timeout: 30000 },

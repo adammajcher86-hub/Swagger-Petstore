@@ -4,18 +4,38 @@ When(
   async function (days: number, calendarLocator: string, settedDateLocator: string) {
     const page = this.page;
 
-    const { container } = getDateSelectors(settedDateLocator);
-    console.log(`[selectDateToggle] container: ${container}`);
+    console.log(`[selectDateToggle] calendarLocator="${calendarLocator}" settedDateLocator="${settedDateLocator}"`);
 
-    // Click the duet-date-picker toggle button directly through shadow DOM
-    // instead of the scale-icon-content-calendar which doesn't propagate clicks
-    console.log('[selectDateToggle] clicking duet-date__toggle button...');
+    // Map settedDateLocator to the scale-date-picker host element
+    // duet-date-picker internals are in regular DOM (not shadow root)
+    // so plain CSS chaining works fine here
+    const containerMap: { [key: string]: string } = {
+      'eRFU set date':          'scale-date-picker#eRfusetdate',
+      'cRFU set date':          'scale-date-picker#cRfusetdate',
+      'ERFC set date':          'scale-date-picker#erfcsetdate',
+      'ARFC set date':          'scale-date-picker#arfcsetdate',
+      'RFS set date':           'scale-date-picker#actualrfssetdate',
+      'aRFU set date':          'scale-date-picker#aRfusetdate',
+      'Billing start set date': 'scale-date-picker#billingstartdate',
+    };
+
+    const container = containerMap[settedDateLocator];
+    if (!container) throw new Error(`No container mapping for settedDateLocator: "${settedDateLocator}"`);
+    console.log(`[selectDateToggle] resolved container: ${container}`);
+
+    // Click the toggle button - plain CSS chain works (no shadow root on duet-date-picker)
+    console.log('[selectDateToggle] clicking duet-date__toggle...');
     await page
-      .locator(container)
-      .locator('duet-date-picker')
-      .locator('button.duet-date__toggle')
+      .locator(`${container} button.duet-date__toggle`)
       .click({ timeout: 10000 });
     console.log('[selectDateToggle] toggle clicked ✓');
+
+    // Wait for dialog to open
+    console.log('[selectDateToggle] waiting for dialog to open...');
+    await page
+      .locator(`${container} .duet-date__dialog[aria-hidden="false"]`)
+      .waitFor({ state: 'visible', timeout: 10000 });
+    console.log('[selectDateToggle] dialog open ✓');
 
     const desiredSelectedDate = await datePicker(page, days, settedDateLocator);
     await delay(1000);
@@ -26,11 +46,20 @@ When(
     const settedDate = await page
       .locator(`${LOCATORS.idLocator(LOCATORS[settedDateLocator])}/descendant::duet-date-picker`)
       .getAttribute('value');
+
+    console.log(`[selectDateToggle] settedDate="${settedDate}" desiredDate="${desiredSelectedDate}"`);
     expect(settedDate).toContain(desiredSelectedDate);
   }
 );
 
 
 
+eRFU: {
+  month: LOCATORS['month selector'] + '[3]',
+  year:  LOCATORS['year selector'] + '[3]',
+  container: 'scale-date-picker#eRfusetdate',  // was #committedrfcsetDiv - WRONG
+},
 
-When User selects 10 days from today on "eRFU Calender" calendar using toggle and verify "eRFU set date"
+
+
+

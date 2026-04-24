@@ -1,76 +1,80 @@
-// Debug: dump all button names visible on page to find correct format
-const allButtonNames = await page.evaluate(() => {
-  return Array.from(document.querySelectorAll('button'))
-    .map(b => b.getAttribute('aria-label') ?? b.textContent?.trim())
-    .filter(Boolean)
-    .slice(0, 50);
-});
-console.log('[datePicker] all button names:', JSON.stringify(allButtonNames));
+export const datePicker = async (page: Page, days: number, dateType: string) => {
+  // --- Calculate target date ---
+  const today = new Date();
+  const targetDate = new Date(today.setDate(today.getDate() + days));
+  const targetDay = targetDate.getDate();
+  const targetDayString = targetDay < 10 ? ('0' + targetDay).toString() : targetDay.toString();
+  const targetDayButtonName = `${targetDay} ${targetDate.toLocaleString('en-US', { month: 'long' })}`;
+  const targetMonth = targetDate.toLocaleString('en-US', { month: 'long' });
+  const targetMonthNo = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const targetYear = targetDate.getFullYear().toString().trim();
+  const currentYear = new Date().getFullYear().toString().trim();
 
+  console.log(`[datePicker] days=${days}, dateType=${dateType}`);
+  console.log(`[datePicker] targetDay=${targetDayString}, targetDayButtonName="${targetDayButtonName}", targetMonth=${targetMonth}, targetMonthNo=${targetMonthNo}, targetYear=${targetYear}`);
 
+  const { container } = getDateSelectors(dateType);
+  console.log(`[datePicker] container selector: ${container}`);
 
-When(
-  'User selects {int} days from today on {string} calendar using toggle and verify {string}',
-  { timeout: 30000 },
-  async function (days: number, calendarLocator: string, settedDateLocator: string) {
-    const page = this.page;
+  // --- Wait for dialog: try chained locator (shadow DOM pierce) first,
+  //     fall back to legacy CSS string (works when no shadow root) ---
+  console.log('[datePicker] waiting for duet-date-picker dialog...');
 
-    console.log(`[selectDateToggle] calendarLocator="${calendarLocator}" settedDateLocator="${settedDateLocator}"`);
+  const chainedDialog = page
+    .locator(container)
+    .locator('duet-date-picker')
+    .locator('.duet-date__dialog[aria-hidden="false"]');
 
-    // Map settedDateLocator to the scale-date-picker host element
-    // duet-date-picker internals are in regular DOM (not shadow root)
-    // so plain CSS chaining works fine here
-    const containerMap: { [key: string]: string } = {
-      'eRFU set date':          'scale-date-picker#eRfusetdate',
-      'cRFU set date':          'scale-date-picker#cRfusetdate',
-      'ERFC set date':          'scale-date-picker#erfcsetdate',
-      'ARFC set date':          'scale-date-picker#arfcsetdate',
-      'RFS set date':           'scale-date-picker#actualrfssetdate',
-      'aRFU set date':          'scale-date-picker#aRfusetdate',
-      'Billing start set date': 'scale-date-picker#billingstartdate',
-    };
+  const legacyDialog = page.locator(
+    `${container} duet-date-picker .duet-date__dialog[aria-hidden="false"]`
+  );
 
-    const container = containerMap[settedDateLocator];
-    if (!container) throw new Error(`No container mapping for settedDateLocator: "${settedDateLocator}"`);
-    console.log(`[selectDateToggle] resolved container: ${container}`);
-
-    // Click the toggle button - plain CSS chain works (no shadow root on duet-date-picker)
-    console.log('[selectDateToggle] clicking duet-date__toggle...');
-    await page
-      .locator(`${container} button.duet-date__toggle`)
-      .click({ timeout: 10000 });
-    console.log('[selectDateToggle] toggle clicked ✓');
-
-    // Wait for dialog to open
-    console.log('[selectDateToggle] waiting for dialog to open...');
-    await page
-      .locator(`${container} .duet-date__dialog[aria-hidden="false"]`)
-      .waitFor({ state: 'visible', timeout: 10000 });
-    console.log('[selectDateToggle] dialog open ✓');
-
-    const desiredSelectedDate = await datePicker(page, days, settedDateLocator);
-    await delay(1000);
-
-    const [year, month, day] = desiredSelectedDate.split('-');
-    this.desiredDate = `${day}.${month}.${year}`;
-
-    const settedDate = await page
-      .locator(`${LOCATORS.idLocator(LOCATORS[settedDateLocator])}/descendant::duet-date-picker`)
-      .getAttribute('value');
-
-    console.log(`[selectDateToggle] settedDate="${settedDate}" desiredDate="${desiredSelectedDate}"`);
-    expect(settedDate).toContain(desiredSelectedDate);
+  let useShadowPierce: boolean;
+  try {
+    await chainedDialog.waitFor({ state: 'visible', timeout: 10000 });
+    useShadowPierce = true;
+    console.log('[datePicker] dialog visible via chained locator (shadow DOM) ✓');
+  } catch {
+    console.warn('[datePicker] chained locator timed out - trying legacy CSS selector...');
+    await legacyDialog.waitFor({ state: 'visible', timeout: 10000 });
+    useShadowPierce = false;
+    console.log('[datePicker] dialog visible via legacy CSS selector ✓');
   }
-);
 
+  // --- Helper to build correct locator based on which strategy worked ---
+  const pickerLocator = (innerSelector: string) => {
+    if (useShadowPierce) {
+      return page
+        .locator(container)
+        .locator('duet-date-picker')
+        .locator(innerSelector);
+    }
+    return page.locator(`${container} duet-date-picker ${innerSelector}`);
+  };
 
+  // --- Select month ---
+  console.log(`[datePicker] selecting month: ${targetMonth}`);
+  await pickerLocator('.duet-date__select--month').selectOption({ label: targetMonth });
+  console.log('[datePicker] month selected ✓');
 
-eRFU: {
-  month: LOCATORS['month selector'] + '[3]',
-  year:  LOCATORS['year selector'] + '[3]',
-  container: 'scale-date-picker#eRfusetdate',  // was #committedrfcsetDiv - WRONG
-},
+  // --- Select year (only if different from current year) ---
+  if (targetYear !== currentYear) {
+    console.log(`[datePicker] selecting year: ${targetYear}`);
+    await pickerLocator('.duet-date__select--year').selectOption({ label: targetYear });
+    console.log('[datePicker] year selected ✓');
+  } else {
+    console.log(`[datePicker] year unchanged (${targetYear}), skipping`);
+  }
 
+  // --- Click target day button ---
+  // Button aria-labels have no leading zero e.g. "4 May" not "04 May"
+  console.log(`[datePicker] clicking day button: "${targetDayButtonName}"`);
+  const dayButton = page.getByRole('button', { name: targetDayButtonName, exact: true });
+  await expect(dayButton).toBeEnabled({ timeout: 5000 });
+  await dayButton.click();
+  console.log('[datePicker] day clicked ✓');
 
-
-
+  const formattedDate = `${targetYear}-${targetMonthNo}-${targetDayString}`;
+  console.log(`[datePicker] returning formattedDate: ${formattedDate}`);
+  return formattedDate;
+};

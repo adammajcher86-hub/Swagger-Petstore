@@ -1,49 +1,56 @@
-When('User select {string} from {string} dropdown', async function (dropdownOption: string, dropdown: string) {
-  const page = this.page;
-  await waitForPageLoad(page);
-  await page.locator(LOCATORS[dropdown]).click({ force: true });
+export async function verifyScaleTextFieldValue(
+  page: Page,
+  expectedValue: string,
+  id?: string | null,
+  label?: string | null,
+  name?: string | null,
+): Promise<boolean> {
+  let locator;
 
-  if (dropdown === 'Actions') {
-    await delay(2000);
-
-    console.log(`[dropdown] looking for option: "${dropdownOption}"`);
-
-    // Map known deeply shadow-nested items to their value attribute
-    const shadowNestedItems: { [key: string]: string } = {
-      'Set cRFU': 'set Crfu date',
-      'Set eRFU': 'set Erfu date',
-      'Set aRFU': 'set Arfu date',
-    };
-
-    if (shadowNestedItems[dropdownOption]) {
-      const valueAttr = shadowNestedItems[dropdownOption];
-      console.log(`[dropdown] shadow-nested item detected - looking for value="${valueAttr}"`);
-
-      // Debug: dump all elements with value attribute in DOM
-      const allValueElements = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll('[value]'))
-          .map(el => ({
-            tag: el.tagName,
-            id: (el as HTMLElement).id,
-            value: el.getAttribute('value'),
-            text: el.textContent?.trim().substring(0, 80),
-          }))
-          .filter(el => el.value && el.value.length > 0);
-      });
-      console.log('[dropdown] all [value] elements in DOM:', JSON.stringify(allValueElements, null, 2));
-
-      await page.locator(`[value="${valueAttr}"]`).click({ timeout: 10000 });
-      console.log(`[dropdown] shadow-nested item clicked ✓`);
-    } else {
-      console.log(`[dropdown] standard item - clicking by text`);
-      const optionLocator = page.locator(`text="${dropdownOption}"`).filter({ visible: true });
-      await optionLocator.first().waitFor({ state: 'visible', timeout: 5000 });
-      await optionLocator.first().click();
-      console.log(`[dropdown] standard item clicked ✓`);
-    }
+  if (id) {
+    locator = page.locator(`#${id}`);
   } else {
-    await page.getByRole('option', { name: dropdownOption }).locator('scale-dropdown-select-item').click();
+    locator = label ? page.getByLabel(label) : page.locator('scale-text-field');
+    if (name) {
+      locator = locator.and(page.locator(`[name="${name}"]`));
+    }
   }
 
-  await waitForPageLoad(page);
-});
+  console.log(`[verifyScaleTextField] id="${id}" label="${label}" name="${name}" expected="${expectedValue}"`);
+
+  try {
+    // Try 1: el.value (works for native inputs)
+    let actualValue = await locator.evaluate((el) => (el as HTMLInputElement).value).catch(() => null);
+    console.log(`[verifyScaleTextField] el.value="${actualValue}"`);
+
+    // Try 2: shadow root input value (scale-text-field wraps input in shadow DOM)
+    if (actualValue === null || actualValue === undefined || actualValue === '') {
+      actualValue = await locator.evaluate((el) => {
+        const shadow = (el as HTMLElement).shadowRoot;
+        const input = shadow?.querySelector('input') ?? shadow?.querySelector('textarea');
+        return (input as HTMLInputElement)?.value ?? null;
+      }).catch(() => null);
+      console.log(`[verifyScaleTextField] shadow input value="${actualValue}"`);
+    }
+
+    // Try 3: getAttribute('value')
+    if (actualValue === null || actualValue === undefined || actualValue === '') {
+      actualValue = await locator.getAttribute('value').catch(() => null);
+      console.log(`[verifyScaleTextField] getAttribute value="${actualValue}"`);
+    }
+
+    // Try 4: innerText
+    if (actualValue === null || actualValue === undefined || actualValue === '') {
+      actualValue = await locator.innerText().catch(() => null);
+      console.log(`[verifyScaleTextField] innerText="${actualValue}"`);
+    }
+
+    const result = actualValue === expectedValue;
+    console.log(`[verifyScaleTextField] result=${result} actual="${actualValue}" expected="${expectedValue}"`);
+    return result;
+
+  } catch (error) {
+    console.error(`[verifyScaleTextField] error:`, (error as Error).message);
+    return false;
+  }
+}

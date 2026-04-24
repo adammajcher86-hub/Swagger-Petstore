@@ -1,9 +1,11 @@
-const selectorMapping: { [key: string]: { month: string; year: string; container: string } } = {
-  ERFC:    { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
-  Billing: { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
-  RFS:     { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: '#rfcsetdateDiv' },
-  cRFU:    { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: 'scale-date-picker#cRfusetdate' },
-  eRFU:    { month: LOCATORS['month selector'] + '[3]', year: LOCATORS['year selector'] + '[3]', container: 'scale-date-picker#eRfusetdate' },
-  aRFU:    { month: LOCATORS['month selector'] + '[5]', year: LOCATORS['year selector'] + '[5]', container: 'scale-date-picker#aRfusetdate' },
-  default: { month: LOCATORS['month selector'] + '[2]', year: LOCATORS['year selector'] + '[2]', container: '#erfcsetdateDiv' },
-};
+And User selects 15 days from today on "Billing start Calender" calendar using toggle and verify "Billing start set date"
+
+
+{ "id": "billingstartdate", "grandParentId": "billingstartdate", "grandParentTag": "SCALE-DATE-PICKER" }
+
+
+Billing: { 
+  month: LOCATORS['month selector'] + '[1]', 
+  year:  LOCATORS['year selector'] + '[1]', 
+  container: 'scale-date-picker#billingstartdate'  // was #erfcsetdateDiv - WRONG
+},

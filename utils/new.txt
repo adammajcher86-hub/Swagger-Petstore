@@ -1,11 +1,38 @@
-And User selects 15 days from today on "Billing start Calender" calendar using toggle and verify "Billing start set date"
+When('User select {string} from {string} dropdown', async function (dropdownOption: string, dropdown: string) {
+  const page = this.page;
+  await waitForPageLoad(page);
+  await page.locator(LOCATORS[dropdown]).click({ force: true });
 
+  if (dropdown === 'Actions') {
+    await delay(2000);
 
-{ "id": "billingstartdate", "grandParentId": "billingstartdate", "grandParentTag": "SCALE-DATE-PICKER" }
+    console.log(`[dropdown] looking for option: "${dropdownOption}"`);
 
+    // Map known deeply shadow-nested items to their value attribute
+    // These live inside triple-nested shadow roots and can't be found by text
+    const shadowNestedItems: { [key: string]: string } = {
+      'Set cRFU': 'set Crfu date',
+      'Set eRFU': 'set Erfu date',
+      'Set aRFU': 'set Arfu date',
+    };
 
-Billing: { 
-  month: LOCATORS['month selector'] + '[1]', 
-  year:  LOCATORS['year selector'] + '[1]', 
-  container: 'scale-date-picker#billingstartdate'  // was #erfcsetdateDiv - WRONG
-},
+    if (shadowNestedItems[dropdownOption]) {
+      // Click via value attribute which is on the div inside the shadow root
+      const valueAttr = shadowNestedItems[dropdownOption];
+      console.log(`[dropdown] shadow-nested item detected - clicking by value="${valueAttr}"`);
+      await page.locator(`[value="${valueAttr}"]`).click({ timeout: 10000 });
+      console.log(`[dropdown] shadow-nested item clicked ✓`);
+    } else {
+      // Standard items - find by visible text
+      console.log(`[dropdown] standard item - clicking by text`);
+      const optionLocator = page.locator(`text="${dropdownOption}"`).filter({ visible: true });
+      await optionLocator.first().waitFor({ state: 'visible', timeout: 5000 });
+      await optionLocator.first().click();
+      console.log(`[dropdown] standard item clicked ✓`);
+    }
+  } else {
+    await page.getByRole('option', { name: dropdownOption }).locator('scale-dropdown-select-item').click();
+  }
+
+  await waitForPageLoad(page);
+});

@@ -1,5 +1,3 @@
-When User selects 12 days from today on "cRFU Calender" calendar using toggle and verify "cRFU set date"
-
 When(
   'User selects {int} days from today on {string} calendar using toggle and verify {string}',
   { timeout: 30000 },

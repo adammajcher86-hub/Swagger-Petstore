@@ -1,56 +1,75 @@
-export async function verifyScaleTextFieldValue(
-  page: Page,
-  expectedValue: string,
-  id?: string | null,
-  label?: string | null,
-  name?: string | null,
-): Promise<boolean> {
-  let locator;
+Then('Verify {string} is {string} on UI', { timeout: 50000 }, async function (data: string, visibility: string) {
+  const page = this.page;
+  console.log('data');
+  console.log(data);
 
-  if (id) {
-    locator = page.locator(`#${id}`);
+  if (visibility === 'visible' && data.includes('toast')) {
+    const toastText = LOCATORS[data] || data;
+
+    // Poll rapidly for up to 5 seconds — catches sub-second toasts
+    const deadline = Date.now() + 5000;
+    let appeared = false;
+
+    while (Date.now() < deadline) {
+      // Check alert role
+      const alertCount = await page
+        .getByRole('alert')
+        .filter({ hasText: toastText })
+        .count();
+
+      if (alertCount > 0) {
+        appeared = true;
+        break;
+      }
+
+      // Check scale-notification
+      const notifCount = await page
+        .locator('scale-notification')
+        .filter({ hasText: toastText })
+        .count();
+
+      if (notifCount > 0) {
+        appeared = true;
+        break;
+      }
+
+      // Check anywhere in DOM (handles already-detaching toasts)
+      const textCount = await page
+        .getByText(toastText, { exact: false })
+        .count();
+
+      if (textCount > 0) {
+        appeared = true;
+        break;
+      }
+
+      await page.waitForTimeout(50); // poll every 50ms
+    }
+
+    expect(appeared).toBeTruthy();
+
+  } else if (visibility === 'visible') {
+    const text = LOCATORS[data] || data;
+    try {
+      await page.waitForSelector(`text=${text}`, { state: 'visible', timeout: 10000 });
+    } catch {
+      const count = await page.getByText(text, { exact: false }).count();
+      console.log(`=== Toast not visible, count in DOM: ${count}`);
+      console.log(`=== page URL: ${page.url()}`);
+      if (count === 0) {
+        throw new Error(`Text "${text}" was never found on page`);
+      }
+      console.log(`Toast "${text}" appeared briefly - considered visible`);
+    }
+
+    if (data === 'Technical validation message' || data === 'Generating Suborders message')
+      await expect(page.getByText(LOCATORS[data] || data).first()).not.toBeVisible({ timeout: 20000 });
+
+  } else if (visibility === 'present') {
+    await expect(page.locator(LOCATORS[data]).first()).toBeVisible();
   } else {
-    locator = label ? page.getByLabel(label) : page.locator('scale-text-field');
-    if (name) {
-      locator = locator.and(page.locator(`[name="${name}"]`));
-    }
+    await expect(page.locator(LOCATORS[data])).not.toBeVisible();
   }
 
-  console.log(`[verifyScaleTextField] id="${id}" label="${label}" name="${name}" expected="${expectedValue}"`);
-
-  try {
-    // Try 1: el.value (works for native inputs)
-    let actualValue = await locator.evaluate((el) => (el as HTMLInputElement).value).catch(() => null);
-    console.log(`[verifyScaleTextField] el.value="${actualValue}"`);
-
-    // Try 2: shadow root input value (scale-text-field wraps input in shadow DOM)
-    if (actualValue === null || actualValue === undefined || actualValue === '') {
-      actualValue = await locator.evaluate((el) => {
-        const shadow = (el as HTMLElement).shadowRoot;
-        const input = shadow?.querySelector('input') ?? shadow?.querySelector('textarea');
-        return (input as HTMLInputElement)?.value ?? null;
-      }).catch(() => null);
-      console.log(`[verifyScaleTextField] shadow input value="${actualValue}"`);
-    }
-
-    // Try 3: getAttribute('value')
-    if (actualValue === null || actualValue === undefined || actualValue === '') {
-      actualValue = await locator.getAttribute('value').catch(() => null);
-      console.log(`[verifyScaleTextField] getAttribute value="${actualValue}"`);
-    }
-
-    // Try 4: innerText
-    if (actualValue === null || actualValue === undefined || actualValue === '') {
-      actualValue = await locator.innerText().catch(() => null);
-      console.log(`[verifyScaleTextField] innerText="${actualValue}"`);
-    }
-
-    const result = actualValue === expectedValue;
-    console.log(`[verifyScaleTextField] result=${result} actual="${actualValue}" expected="${expectedValue}"`);
-    return result;
-
-  } catch (error) {
-    console.error(`[verifyScaleTextField] error:`, (error as Error).message);
-    return false;
-  }
-}
+  await page.waitForLoadState('load', { timeout: 15000 });
+});

@@ -1,33 +1,28 @@
 Then('User {string} on {string} button', async function (action: string, locatorValue: string) {
-  // Reduced from 500ms — just enough to let UI settle after previous step
+  const page = this.page; // ← move here, top of method
   await delay(100);
 
   if (action === 'double clicks') {
     if (locatorValue === 'order ID') locatorValue = this.orderId;
-    this.mainPage = this.page;
+    this.mainPage = page;
 
     const start = Date.now();
     const [newTab] = await Promise.all([
-      this.page.context().waitForEvent('page'),
-      this.page.getByText(locatorValue).last().dblclick()
+      page.context().waitForEvent('page'),
+      page.getByText(locatorValue).last().dblclick()
     ]);
 
-    // 'domcontentloaded' is faster than 'load' — sufficient for most cases
     await newTab.waitForLoadState('domcontentloaded');
-    const end = Date.now();
-    console.log(`Order details page loading time: ${end - start} ms`);
+    console.log(`Order details page loading time: ${Date.now() - start} ms`);
     await newTab.bringToFront();
     this.newTab = newTab;
     this.page = newTab;
 
   } else if (locatorValue.includes('endpoint-B')) {
-    const page = this.page;
     const endpoint = locatorValue.split(' ');
-    // Removed redundant toBeVisible() — click() auto-waits for actionability
     await page.getByRole('button', { name: endpoint[1], exact: true }).last().click();
 
   } else if (locatorValue.includes('close icon')) {
-    const page = this.page;
     const locator = LOCATORS[locatorValue] || 'button[part="close-button"][aria-label="Close"]';
 
     let attempts = 0;
@@ -41,7 +36,6 @@ Then('User {string} on {string} button', async function (action: string, locator
         if (await btn.isVisible()) {
           try {
             await btn.click({ timeout: 5000 });
-            // Reduced from 500ms — just enough for modal close animation
             await page.waitForTimeout(200);
             closed = true;
           } catch (e) {
@@ -58,29 +52,10 @@ Then('User {string} on {string} button', async function (action: string, locator
     }
 
   } else {
-    const page = this.page;
-    // Removed redundant toBeVisible() check — click() has built-in auto-waiting
     await page.getByRole('button', { name: locatorValue, exact: true }).first().click();
-    // Replaced hardcoded delay(3000) with smart network wait
     await waitForPageLoad(page);
   }
 
+  // this.page used here because double clicks branch reassigns it to newTab
   await waitForPageLoad(this.page);
 });
-
-
-
-
-
-async function waitForPageLoad(page: Page, timeout = 10000): Promise<void> {
-  await Promise.race([
-    page.waitForLoadState('networkidle', { timeout }),
-    page.waitForLoadState('load', { timeout }),
-  ]).catch(() => {}); // Best effort — don't fail the step on timeout
-}
-
-
-
-
-
-

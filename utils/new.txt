@@ -1,61 +1,8 @@
-Then('User {string} on {string} button', async function (action: string, locatorValue: string) {
-  const page = this.page; // ← move here, top of method
-  await delay(100);
-
-  if (action === 'double clicks') {
-    if (locatorValue === 'order ID') locatorValue = this.orderId;
-    this.mainPage = page;
-
-    const start = Date.now();
-    const [newTab] = await Promise.all([
-      page.context().waitForEvent('page'),
-      page.getByText(locatorValue).last().dblclick()
-    ]);
-
-    await newTab.waitForLoadState('domcontentloaded');
-    console.log(`Order details page loading time: ${Date.now() - start} ms`);
-    await newTab.bringToFront();
-    this.newTab = newTab;
-    this.page = newTab;
-
-  } else if (locatorValue.includes('endpoint-B')) {
-    const endpoint = locatorValue.split(' ');
-    await page.getByRole('button', { name: endpoint[1], exact: true }).last().click();
-
-  } else if (locatorValue.includes('close icon')) {
-    const locator = LOCATORS[locatorValue] || 'button[part="close-button"][aria-label="Close"]';
-
-    let attempts = 0;
-    let closed = false;
-    while (attempts < 3) {
-      const closeBtns = page.locator(locator);
-      const count = await closeBtns.count();
-      if (count === 0) break;
-      for (let i = 0; i < count; i++) {
-        const btn = closeBtns.nth(i);
-        if (await btn.isVisible()) {
-          try {
-            await btn.click({ timeout: 5000 });
-            await page.waitForTimeout(200);
-            closed = true;
-          } catch (e) {
-            // Ignore and try next
-          }
-        }
-      }
-      const stillVisible = await closeBtns.filter({ has: page.locator('text=Close') }).count();
-      if (stillVisible === 0) break;
-      attempts++;
-    }
-    if (!closed) {
-      throw new Error('Could not close the popup after multiple attempts');
-    }
-
-  } else {
-    await page.getByRole('button', { name: locatorValue, exact: true }).first().click();
-    await waitForPageLoad(page);
-  }
-
-  // this.page used here because double clicks branch reassigns it to newTab
-  await waitForPageLoad(this.page);
+Then('User clicks {string} button', async function (locatorValue: string) {
+  const page = this.page;
+  await page.getByRole('button', { name: locatorValue, exact: true }).first().click();
+  await waitForPageLoad(page);
 });
+
+
+And User clicks "Update" button

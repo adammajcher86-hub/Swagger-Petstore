@@ -1,8 +1,40 @@
-Then('User clicks {string} button', async function (locatorValue: string) {
+When('User opens {string} suborder', { timeout: 60000 }, async function (locator: string) {
   const page = this.page;
-  await page.getByRole('button', { name: locatorValue, exact: true }).first().click();
-  await waitForPageLoad(page);
+  await delay(5000);
+  let title: string;
+  if (locator === 'Natco Installation Poland') title = 'natco_installation';
+  else title = locator.toLowerCase().replaceAll(' ', '_');
+
+  console.log('....User opens {string} suborder: begin of method');
+  console.log('title:', title);
+
+  const newTabPromise = this.browserContext.waitForEvent('page', { timeout: 30000 });
+
+  // Get coordinates and scroll into view
+  const coords = await page.evaluate((t) => {
+    const row = document.querySelector(`tr[title="${t}"]`);
+    if (!row) return null;
+    row.scrollIntoView({ block: 'center' });
+    const rect = row.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  }, title);
+
+  console.log('coords:', coords);
+  if (!coords) throw new Error(`Row not found for title: ${title}`);
+
+  await delay(500);
+  console.log('clicking first time...');
+  await page.mouse.click(coords.x, coords.y);
+  await delay(150); // human-like delay between clicks
+  console.log('clicking second time...');
+  await page.mouse.click(coords.x, coords.y);
+
+  console.log('waiting for new tab...');
+  const newTab = await newTabPromise;
+  console.log('new tab url:', await newTab.url());
+
+  await newTab.waitForLoadState('domcontentloaded', { timeout: 30000 });
+  await newTab.bringToFront();
+  this.newTab = newTab;
+  this.page = newTab;
 });
-
-
-And User clicks "Update" button

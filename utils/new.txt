@@ -1,69 +1,54 @@
-import { Page, expect } from '@playwright/test';
-import { LOCATORS } from './locators';
+Feature: NGSD Order Details - SNO field
 
-export const datePicker = async (page: Page, days: number, dateType: string) => {
-  const today = new Date();
-  const targetDate = new Date(today.setDate(today.getDate() + days));
-  const targetDay = targetDate.getDate();
-  let targetDayString: string;
-  if (targetDay < 10) {
-    targetDayString = ('0' + targetDay).toString();
-  } else targetDayString = targetDay.toString();
-  const targetMonth = targetDate.toLocaleString('en-US', { month: 'long' });
-  const targetMonthNo = String(targetDate.getMonth() + 1).padStart(2, '0');
-  const targetYear = targetDate.getFullYear().toString().trim();
+  Background:
+    Given user opens the "NGSD order details" page
 
-  const { container } = getDateSelectors(dateType);
+  Scenario: User fills SNO field with value 1
+    When user fills "SNO" field with "1"
+    Then "SNO" field should contain value "1"
 
-  await page.waitForSelector(
-    `${container} duet-date-picker .duet-date__dialog[aria-hidden="false"]`,
-    { timeout: 10000 }
-  );
 
-  await page.locator(`${container} duet-date-picker .duet-date__select--month`)
-    .selectOption({ label: targetMonth });
+import { Given, When, Then } from '@cucumber/cucumber';
+import { expect } from '@playwright/test';
 
-  if (targetYear !== new Date().getFullYear().toString().trim()) {
-    await page.locator(`${container} duet-date-picker .duet-date__select--year`)
-      .selectOption({ label: targetYear });
+const PAGE_URLS: Record<string, string> = {
+  'NGSD order details': 'https://your-app-url.example.com/ngsd/order-details', // TODO: podmień na właściwy URL
+};
+
+const FIELD_NAME_MAP: Record<string, string> = {
+  SNO: 'sno',
+  LSC: 'lsc',
+  'LSC Extension': 'lscextension',
+  SLA: 'sla',
+};
+
+Given('user opens the {string} page', async function (pageName: string) {
+  const url = PAGE_URLS[pageName];
+  if (!url) {
+    throw new Error(`Unknown page: ${pageName}`);
+  }
+  await this.page.goto(url);
+  await this.page.waitForLoadState('networkidle');
+});
+
+When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
+  const nameAttr = FIELD_NAME_MAP[fieldName];
+  if (!nameAttr) {
+    throw new Error(`Unknown field label: ${fieldName}`);
   }
 
-  await expect(page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true }))
-    .toBeEnabled({ timeout: 5000 });
-  await page.getByRole('button', { name: `${targetDayString} ${targetMonth}`, exact: true }).click();
+  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
+  await input.waitFor({ state: 'visible' });
+  await input.fill(value);
+  await input.press('Tab'); // wymusza blur i walidację (min/step na polu number)
+});
 
-  const formattedDate = `${targetYear}-${targetMonthNo}-${targetDayString}`;
-  return formattedDate;
-};
+Then('{string} field should contain value {string}', async function (fieldName: string, expectedValue: string) {
+  const nameAttr = FIELD_NAME_MAP[fieldName];
+  if (!nameAttr) {
+    throw new Error(`Unknown field label: ${fieldName}`);
+  }
 
-const getDateSelectors = (dateType: string): { monthSelector: string; yearSelector: string; container: string } => {
-  const selectorMapping: { [key: string]: { month: string; year: string; container: string } } = {
-    ERFC:    { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
-    Billing: { month: LOCATORS['month selector'] + '[1]', year: LOCATORS['year selector'] + '[1]', container: '#erfcsetdateDiv' },
-    RFS:     { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: '#rfcsetdateDiv' },
-    cRFU:    { month: LOCATORS['month selector'] + '[4]', year: LOCATORS['year selector'] + '[4]', container: '#committedrfcsetDiv' },
-    eRFU:    { month: LOCATORS['month selector'] + '[3]', year: LOCATORS['year selector'] + '[3]', container: '#committedrfcsetDiv' },
-    aRFU:    { month: LOCATORS['month selector'] + '[5]', year: LOCATORS['year selector'] + '[5]', container: '#actualrfssetdateDiv' },
-    default: { month: LOCATORS['month selector'] + '[2]', year: LOCATORS['year selector'] + '[2]', container: '#erfcsetdateDiv' },
-  };
-  const key = dateType.split(' ')[0];
-  const entry = selectorMapping[key] ?? selectorMapping['default'];
-  return { monthSelector: entry.month, yearSelector: entry.year, container: entry.container };
-};
-
-
-
-
-
-
-
-
-
-
-
-await page.locator(LOCATORS[calendarLocator]).click();
-const desiredSelectedDate = await datePicker(page, days, settedDateLocator);
-
-
-
-
+  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
+  await expect(input).toHaveValue(expectedValue);
+});

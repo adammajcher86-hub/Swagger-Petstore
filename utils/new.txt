@@ -1,110 +1,13 @@
-Feature: NGSD Order Details - SNO field
+// 1. Sprawdź czy element w ogóle istnieje i jaki ma dokładnie atrybut name
+const el = document.querySelector('scale-text-field[name="sno"]');
+console.log('Element znaleziony:', el);
+console.log('Atrybut name:', el?.getAttribute('name'));
 
-  Background:
-    Given user opens the "NGSD order details" page
+// 2. Sprawdź czy ma open shadow root
+console.log('Shadow root:', el?.shadowRoot);
 
-  Scenario: User fills SNO field with value 1
-    When user fills "SNO" field with "1"
-    Then "SNO" field should contain value "1"
-
-
-import { Given, When, Then } from '@cucumber/cucumber';
-import { expect } from '@playwright/test';
-
-const PAGE_URLS: Record<string, string> = {
-  'NGSD order details': 'https://your-app-url.example.com/ngsd/order-details', // TODO: podmień na właściwy URL
-};
-
-const FIELD_NAME_MAP: Record<string, string> = {
-  SNO: 'sno',
-  LSC: 'lsc',
-  'LSC Extension': 'lscextension',
-  SLA: 'sla',
-};
-
-Given('user opens the {string} page', async function (pageName: string) {
-  const url = PAGE_URLS[pageName];
-  if (!url) {
-    throw new Error(`Unknown page: ${pageName}`);
-  }
-  await this.page.goto(url);
-  await this.page.waitForLoadState('networkidle');
-});
-
-When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
-  const nameAttr = FIELD_NAME_MAP[fieldName];
-  if (!nameAttr) {
-    throw new Error(`Unknown field label: ${fieldName}`);
-  }
-
-  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
-  await input.waitFor({ state: 'visible' });
-  await input.fill(value);
-  await input.press('Tab'); // wymusza blur i walidację (min/step na polu number)
-});
-
-Then('{string} field should contain value {string}', async function (fieldName: string, expectedValue: string) {
-  const nameAttr = FIELD_NAME_MAP[fieldName];
-  if (!nameAttr) {
-    throw new Error(`Unknown field label: ${fieldName}`);
-  }
-
-  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
-  await expect(input).toHaveValue(expectedValue);
-});
-
-
-
-
-
-
-
-
-Feature: NGSD Order Details - SNO and TGN NMS ID fields
-
-  Background:
-    Given user opens the "NGSD order details" page
-
-  Scenario: User fills SNO and TGN NMS ID fields
-    When user fills "SNO" field with "1"
-    And user fills "TGN NMS ID" field with "12345"
-    Then "SNO" field should contain value "1"
-    And "TGN NMS ID" field should contain value "12345"
-
-
-
-import { Given, When, Then } from '@cucumber/cucumber';
-import { expect } from '@playwright/test';
-import { FIELD_NAME_MAP, PAGE_URLS } from '../support/fieldMap';
-
-Given('user opens the {string} page', async function (pageName: string) {
-  const url = PAGE_URLS[pageName];
-  if (!url) {
-    throw new Error(`Unknown page: ${pageName}`);
-  }
-  await this.page.goto(url);
-  await this.page.waitForLoadState('networkidle');
-});
-
-When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
-  const nameAttr = FIELD_NAME_MAP[fieldName];
-  if (!nameAttr) {
-    throw new Error(`Unknown field label: ${fieldName}`);
-  }
-
-  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
-  await input.waitFor({ state: 'visible' });
-  await input.fill(value);
-  await input.press('Tab');
-});
-
-Then('{string} field should contain value {string}', async function (fieldName: string, expectedValue: string) {
-  const nameAttr = FIELD_NAME_MAP[fieldName];
-  if (!nameAttr) {
-    throw new Error(`Unknown field label: ${fieldName}`);
-  }
-
-  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
-  await expect(input).toHaveValue(expectedValue);
-});
-
+// 3. Sprawdź input wewnątrz shadow roota
+const input = el?.shadowRoot?.querySelector('input');
+console.log('Input:', input);
+console.log('Input value:', input?.value);
+console.log('Input name (wewnętrzny):', input?.getAttribute('name'));

@@ -1,13 +1,12 @@
-// 1. Sprawdź czy element w ogóle istnieje i jaki ma dokładnie atrybut name
-const el = document.querySelector('scale-text-field[name="sno"]');
-console.log('Element znaleziony:', el);
-console.log('Atrybut name:', el?.getAttribute('name'));
+// Ile jest takich elementów?
+const all = document.querySelectorAll('scale-text-field[name="sno"]');
+console.log('Liczba elementów:', all.length);
 
-// 2. Sprawdź czy ma open shadow root
-console.log('Shadow root:', el?.shadowRoot);
+all.forEach((el, i) => {
+  console.log(`--- Element ${i} ---`);
+  console.log('HTML:', el.outerHTML.slice(0, 150));
+  console.log('Shadow root:', el.shadowRoot);
+  console.log('Ma data-original:', el.hasAttribute('data-original'));
+});
 
-// 3. Sprawdź input wewnątrz shadow roota
-const input = el?.shadowRoot?.querySelector('input');
-console.log('Input:', input);
-console.log('Input value:', input?.value);
-console.log('Input name (wewnętrzny):', input?.getAttribute('name'));
+console.log('Czy zdefiniowany:', customElements.get('scale-text-field'));

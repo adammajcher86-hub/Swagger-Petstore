@@ -1,14 +1,50 @@
-When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
-  console.log('DEBUG fieldName:', JSON.stringify(fieldName)); // pokaże dokładny string, ze spacjami/wielkością liter
-  console.log('DEBUG map keys:', Object.keys(FIELD_SELECTOR_MAP));
+import { Given, When, Then } from '@cucumber/cucumber';
+import { expect } from '@playwright/test';
 
-  const selector = FIELD_SELECTOR_MAP[fieldName];
-  if (!selector) {
+const PAGE_URLS: Record<string, string> = {
+  'NGSD order details': 'https://your-app-url.example.com/ngsd/order-details', // TODO: podmień na właściwy URL
+};
+
+const FIELD_SELECTOR_MAP: Record<string, string> = {
+  SNO: 'scale-text-field#sno-switch input',
+  LSC: 'scale-text-field[name="lsc"] input',
+  'LSC Extension': 'scale-text-field[name="lscextension"] input',
+  SLA: 'scale-text-field[name="sla"] input',
+  'TGN NMS ID': 'scale-text-field[name="tgnnmsid"] input',
+};
+
+function resolveFieldSelector(fieldName: string): string {
+  const normalized = fieldName.trim().toUpperCase();
+  const match = Object.entries(FIELD_SELECTOR_MAP).find(
+    ([key]) => key.toUpperCase() === normalized
+  );
+  if (!match) {
     throw new Error(`Unknown field label: ${fieldName}`);
   }
+  return match[1];
+}
+
+Given('user opens the {string} page', async function (pageName: string) {
+  const url = PAGE_URLS[pageName];
+  if (!url) {
+    throw new Error(`Unknown page: ${pageName}`);
+  }
+  await this.page.goto(url);
+  await this.page.waitForLoadState('networkidle');
+});
+
+When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
+  const selector = resolveFieldSelector(fieldName);
 
   const input = this.page.locator(selector);
   await input.waitFor({ state: 'visible' });
   await input.fill(value);
   await input.press('Tab');
+});
+
+Then('{string} field should contain value {string}', async function (fieldName: string, expectedValue: string) {
+  const selector = resolveFieldSelector(fieldName);
+
+  const input = this.page.locator(selector);
+  await expect(input).toHaveValue(expectedValue);
 });

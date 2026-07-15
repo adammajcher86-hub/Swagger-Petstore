@@ -1,12 +1,7 @@
-export const FIELD_SELECTOR_MAP: Record<string, string> = {
-  SNO: 'scale-text-field#sno-switch input',
-  LSC: 'scale-text-field[name="lsc"] input',
-  'LSC Extension': 'scale-text-field[name="lscextension"] input',
-  SLA: 'scale-text-field[name="sla"] input',
-  'TGN NMS ID': 'scale-text-field[name="tgnnmsid"] input',
-};
-
 When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
+  console.log('DEBUG fieldName:', JSON.stringify(fieldName)); // pokaże dokładny string, ze spacjami/wielkością liter
+  console.log('DEBUG map keys:', Object.keys(FIELD_SELECTOR_MAP));
+
   const selector = FIELD_SELECTOR_MAP[fieldName];
   if (!selector) {
     throw new Error(`Unknown field label: ${fieldName}`);

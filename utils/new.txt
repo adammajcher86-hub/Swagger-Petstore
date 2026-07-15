@@ -52,3 +52,59 @@ Then('{string} field should contain value {string}', async function (fieldName: 
   const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
   await expect(input).toHaveValue(expectedValue);
 });
+
+
+
+
+
+
+
+
+Feature: NGSD Order Details - SNO and TGN NMS ID fields
+
+  Background:
+    Given user opens the "NGSD order details" page
+
+  Scenario: User fills SNO and TGN NMS ID fields
+    When user fills "SNO" field with "1"
+    And user fills "TGN NMS ID" field with "12345"
+    Then "SNO" field should contain value "1"
+    And "TGN NMS ID" field should contain value "12345"
+
+
+
+import { Given, When, Then } from '@cucumber/cucumber';
+import { expect } from '@playwright/test';
+import { FIELD_NAME_MAP, PAGE_URLS } from '../support/fieldMap';
+
+Given('user opens the {string} page', async function (pageName: string) {
+  const url = PAGE_URLS[pageName];
+  if (!url) {
+    throw new Error(`Unknown page: ${pageName}`);
+  }
+  await this.page.goto(url);
+  await this.page.waitForLoadState('networkidle');
+});
+
+When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
+  const nameAttr = FIELD_NAME_MAP[fieldName];
+  if (!nameAttr) {
+    throw new Error(`Unknown field label: ${fieldName}`);
+  }
+
+  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
+  await input.waitFor({ state: 'visible' });
+  await input.fill(value);
+  await input.press('Tab');
+});
+
+Then('{string} field should contain value {string}', async function (fieldName: string, expectedValue: string) {
+  const nameAttr = FIELD_NAME_MAP[fieldName];
+  if (!nameAttr) {
+    throw new Error(`Unknown field label: ${fieldName}`);
+  }
+
+  const input = this.page.locator(`scale-text-field[name="${nameAttr}"] input`);
+  await expect(input).toHaveValue(expectedValue);
+});
+

@@ -1,12 +1,19 @@
-// Ile jest takich elementów?
-const all = document.querySelectorAll('scale-text-field[name="sno"]');
-console.log('Liczba elementów:', all.length);
+export const FIELD_SELECTOR_MAP: Record<string, string> = {
+  SNO: 'scale-text-field#sno-switch input',
+  LSC: 'scale-text-field[name="lsc"] input',
+  'LSC Extension': 'scale-text-field[name="lscextension"] input',
+  SLA: 'scale-text-field[name="sla"] input',
+  'TGN NMS ID': 'scale-text-field[name="tgnnmsid"] input',
+};
 
-all.forEach((el, i) => {
-  console.log(`--- Element ${i} ---`);
-  console.log('HTML:', el.outerHTML.slice(0, 150));
-  console.log('Shadow root:', el.shadowRoot);
-  console.log('Ma data-original:', el.hasAttribute('data-original'));
+When('user fills {string} field with {string}', async function (fieldName: string, value: string) {
+  const selector = FIELD_SELECTOR_MAP[fieldName];
+  if (!selector) {
+    throw new Error(`Unknown field label: ${fieldName}`);
+  }
+
+  const input = this.page.locator(selector);
+  await input.waitFor({ state: 'visible' });
+  await input.fill(value);
+  await input.press('Tab');
 });
-
-console.log('Czy zdefiniowany:', customElements.get('scale-text-field'));
